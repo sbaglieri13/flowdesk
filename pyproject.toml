@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ARG"]
+# B008: FastAPI's `Depends(...)` is designed to be called in argument defaults.
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend"]
