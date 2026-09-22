@@ -154,13 +154,20 @@ def reorder_tasks(db: Session, column_id: int, ordered_task_ids: list[int]) -> N
     db.commit()
 
 
-def auto_sort_tasks(db: Session, column_id: int, sort_by: str) -> None:
+def auto_sort_tasks(db: Session, column_id: int, sort_by: str, order: str | None = None) -> None:
     tasks = db.query(Task).filter(Task.column_id == column_id).all()
 
     if sort_by == "priority":
-        tasks.sort(key=lambda t: (t.priority.position, t.id))
+        # Lower priority position means more important, so "desc" (highest
+        # priority first) is the default and sorts by position ascending.
+        sign = 1 if (order or "desc") == "desc" else -1
+        tasks.sort(key=lambda t: (sign * t.priority.position, t.id))
     elif sort_by == "deadline":
-        tasks.sort(key=lambda t: (t.deadline is None, t.deadline or date.max, t.id))
+        # Tasks without a deadline stay last in both directions.
+        sign = 1 if (order or "asc") == "asc" else -1
+        tasks.sort(
+            key=lambda t: (t.deadline is None, sign * (t.deadline.toordinal() if t.deadline else 0), t.id)
+        )
     else:
         raise ValueError(f"Unknown sort_by: {sort_by}")
 

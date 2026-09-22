@@ -26,7 +26,12 @@ stores everything in a single SQLite file.
 
 - Drag-and-drop board with fully customizable columns
 - Tasks with Markdown description/notes (bold, italic, underline, color),
-  priority, deadline, tags, checklist, and file attachments
+  status, priority, deadline, tags, checklist, and file attachments
+- Move a task between columns by dragging it or from the Status dropdown in
+  its detail window
+- Task edits are saved only when you press Save; closing with unsaved changes
+  asks for confirmation
+- Per-column auto-sort by priority or deadline, in either direction
 - Search and filter by text, priority, or tag
 - Draggable, resizable, maximizable windows for tasks and settings
 - Light and dark theme

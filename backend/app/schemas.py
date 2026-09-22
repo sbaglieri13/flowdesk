@@ -221,6 +221,9 @@ class TaskReorderRequest(BaseModel):
 class TaskAutoSortRequest(BaseModel):
     column_id: int
     sort_by: Literal["priority", "deadline"]
+    # Direction of the sort. Defaults per key: priority "desc" (highest first),
+    # deadline "asc" (soonest first).
+    order: Literal["asc", "desc"] | None = None
 
 
 # --- Settings --------------------------------------------------------------

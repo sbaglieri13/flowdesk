@@ -1,45 +1,31 @@
-import { AlertTriangle, Paperclip, Upload, X } from 'lucide-react'
-import { useRef, useState, type ChangeEvent } from 'react'
+import { Paperclip, X } from 'lucide-react'
 import { attachmentsApi } from '../../api/attachments'
-import { useAsyncAction } from '../../hooks/useAsyncAction'
 import type { Attachment } from '../../types'
 import { formatFileSize } from '../../utils/fileSize'
 import { Button } from '../ui/button'
+import { DraftAttachmentsEditor } from './DraftAttachmentsEditor'
 
 interface AttachmentsPanelProps {
   taskId: number
+  /** Attachments already saved on the task and not marked for removal. */
   items: Attachment[]
-  onItemsChange: (items: Attachment[]) => void
+  onRemoveExisting: (attachmentId: number) => void
+  pendingFiles: File[]
+  onPendingFilesChange: (files: File[]) => void
 }
 
-const GENERIC_ERROR = 'Could not update attachments. Please try again.'
-
-export function AttachmentsPanel({ taskId, items, onItemsChange }: AttachmentsPanelProps) {
+/** Stages attachment changes (removals and new files); they are applied when the task is saved. */
+export function AttachmentsPanel({
+  taskId,
+  items,
+  onRemoveExisting,
+  pendingFiles,
+  onPendingFilesChange,
+}: AttachmentsPanelProps) {
   // Defensive: a task fetched from a server that hasn't picked up this field
   // yet (e.g. not restarted since this feature shipped) would otherwise send
   // `attachments: undefined` and crash the whole modal on `.map`.
   const safeItems = items ?? []
-  const { error, run: runOrReportError } = useAsyncAction(GENERIC_ERROR)
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    e.target.value = '' // lets the same file be re-selected later
-    if (!file) return
-    setUploading(true)
-    await runOrReportError(async () => {
-      const attachment = await attachmentsApi.upload(taskId, file)
-      onItemsChange([...safeItems, attachment])
-    })
-    setUploading(false)
-  }
-
-  const handleDelete = (attachmentId: number) =>
-    runOrReportError(async () => {
-      await attachmentsApi.remove(taskId, attachmentId)
-      onItemsChange(safeItems.filter((a) => a.id !== attachmentId))
-    })
 
   return (
     <div className="space-y-2">
@@ -66,7 +52,7 @@ export function AttachmentsPanel({ taskId, items, onItemsChange }: AttachmentsPa
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 shrink-0 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
-                onClick={() => handleDelete(attachment.id)}
+                onClick={() => onRemoveExisting(attachment.id)}
                 aria-label={`Remove attachment ${attachment.filename}`}
               >
                 <X className="h-3.5 w-3.5" strokeWidth={2} />
@@ -76,18 +62,7 @@ export function AttachmentsPanel({ taskId, items, onItemsChange }: AttachmentsPa
         </ul>
       )}
 
-      {error && (
-        <p role="alert" className="flex items-center gap-1.5 text-xs text-red-500">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {error}
-        </p>
-      )}
-
-      <div>
-        <input ref={fileInputRef} type="file" onChange={handleFileChange} disabled={uploading} className="hidden" />
-        <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-          <Upload className="h-4 w-4" strokeWidth={2} /> {uploading ? 'Uploading…' : 'Upload a file'}
-        </Button>
-      </div>
+      <DraftAttachmentsEditor files={pendingFiles} onChange={onPendingFilesChange} />
     </div>
   )
 }

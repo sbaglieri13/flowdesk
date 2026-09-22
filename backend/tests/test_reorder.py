@@ -50,3 +50,43 @@ def test_auto_sort_by_deadline_puts_no_deadline_last(client, columns_by_name):
     tasks = client.get("/api/tasks", params={"column_id": col_id}).json()
     ordered_titles = [t["title"] for t in sorted(tasks, key=lambda t: t["position"])]
     assert ordered_titles == ["Due soon", "Due later", "No deadline"]
+
+
+def _titles_after_sort(client, col_id, **payload):
+    resp = client.post("/api/tasks/auto-sort", json={"column_id": col_id, **payload})
+    assert resp.status_code == 204
+    tasks = client.get("/api/tasks", params={"column_id": col_id}).json()
+    return [t["title"] for t in sorted(tasks, key=lambda t: t["position"])]
+
+
+def test_auto_sort_by_priority_ascending_puts_lowest_first(client, columns_by_name, priorities_by_key):
+    col_id = columns_by_name["New"].id
+    for title, key in [("Low one", "low"), ("Urgent one", "urgent"), ("Medium one", "medium")]:
+        client.post(
+            "/api/tasks",
+            json={"title": title, "column_id": col_id, "priority_id": priorities_by_key[key].id},
+        )
+
+    assert _titles_after_sort(client, col_id, sort_by="priority", order="asc") == [
+        "Low one",
+        "Medium one",
+        "Urgent one",
+    ]
+    assert _titles_after_sort(client, col_id, sort_by="priority", order="desc") == [
+        "Urgent one",
+        "Medium one",
+        "Low one",
+    ]
+
+
+def test_auto_sort_by_deadline_descending_keeps_no_deadline_last(client, columns_by_name):
+    col_id = columns_by_name["New"].id
+    client.post("/api/tasks", json={"title": "No deadline", "column_id": col_id})
+    client.post("/api/tasks", json={"title": "Due later", "column_id": col_id, "deadline": "2030-06-01"})
+    client.post("/api/tasks", json={"title": "Due soon", "column_id": col_id, "deadline": "2030-01-01"})
+
+    assert _titles_after_sort(client, col_id, sort_by="deadline", order="desc") == [
+        "Due later",
+        "Due soon",
+        "No deadline",
+    ]

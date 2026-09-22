@@ -12,8 +12,6 @@ interface DescriptionNotesFieldsProps {
   notes: string
   onNotesChange: (value: string) => void
   defaultMode?: 'edit' | 'preview'
-  /** Renders a "Save" button under the active editor when provided (edit-modal usage). */
-  renderSaveButton?: (section: Section) => React.ReactNode
 }
 
 const TABS: [Section, string, ComponentType<{ className?: string; strokeWidth?: number }>][] = [
@@ -29,8 +27,7 @@ export function DescriptionNotesFields({
   notes,
   onNotesChange,
   defaultMode,
-  renderSaveButton,
-}: DescriptionNotesFieldsProps) {
+}:DescriptionNotesFieldsProps) {
   return (
     <>
       <div className="mb-1 flex gap-1">
@@ -52,25 +49,19 @@ export function DescriptionNotesFields({
       </div>
 
       {activeSection === 'description' ? (
-        <>
-          <MarkdownEditor
-            value={description}
-            onChange={onDescriptionChange}
-            placeholder="Description (Markdown supported)..."
-            defaultMode={defaultMode}
-          />
-          {renderSaveButton?.('description')}
-        </>
+        <MarkdownEditor
+          value={description}
+          onChange={onDescriptionChange}
+          placeholder="Description (Markdown supported)..."
+          defaultMode={defaultMode}
+        />
       ) : (
-        <>
-          <MarkdownEditor
-            value={notes}
-            onChange={onNotesChange}
-            placeholder="Extra notes: analysis results, meeting notes, links..."
-            defaultMode={defaultMode}
-          />
-          {renderSaveButton?.('notes')}
-        </>
+        <MarkdownEditor
+          value={notes}
+          onChange={onNotesChange}
+          placeholder="Extra notes: analysis results, meeting notes, links..."
+          defaultMode={defaultMode}
+        />
       )}
     </>
   )

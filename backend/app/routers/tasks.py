@@ -86,7 +86,7 @@ def reorder_tasks(payload: TaskReorderRequest, db: Session = Depends(get_db)):
 @router.post("/auto-sort", status_code=204)
 def auto_sort_tasks(payload: TaskAutoSortRequest, db: Session = Depends(get_db)):
     try:
-        task_service.auto_sort_tasks(db, payload.column_id, payload.sort_by)
+        task_service.auto_sort_tasks(db, payload.column_id, payload.sort_by, payload.order)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 

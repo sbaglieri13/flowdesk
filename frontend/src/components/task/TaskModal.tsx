@@ -1,12 +1,15 @@
-import { AlertTriangle, CheckSquare, Link2, Paperclip, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckSquare, Link2, Paperclip, Save, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
+import { attachmentsApi } from '../../api/attachments'
 import { tagsApi } from '../../api/tags'
-import { tasksApi } from '../../api/tasks'
+import { tasksApi, type TaskUpdatePayload } from '../../api/tasks'
 import { useBoardData } from '../../state/BoardContext'
-import type { Task } from '../../types'
+import type { ChecklistItem, Task } from '../../types'
+import { checklistChanged, saveChecklistChanges } from '../../utils/checklistDiff'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { FloatingWindow } from '../common/FloatingWindow'
+import type { ListboxOption } from '../common/Listbox'
 import { Button } from '../ui/button'
 import { AttachmentsPanel } from './AttachmentsPanel'
 import { ChecklistPanel } from './ChecklistPanel'
@@ -22,28 +25,126 @@ interface TaskModalProps {
   onDeleted: (taskId: number) => void
 }
 
-const GENERIC_SAVE_ERROR = 'Could not save your change. Please try again.'
+const GENERIC_SAVE_ERROR = 'Could not save your changes. Please try again.'
+
+function sameIds(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false
+  const sortedB = [...b].sort((x, y) => x - y)
+  return [...a].sort((x, y) => x - y).every((id, i) => id === sortedB[i])
+}
 
 export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProps) {
-  const { tags, priorities, settings, refreshTags } = useBoardData()
+  const { columns, tags, priorities, settings, refreshTags } = useBoardData()
+  // `current` is the last state known to be saved on the server; everything
+  // below it is an unsaved draft that only reaches the server via handleSave.
+  const [current, setCurrent] = useState(task)
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
   const [notes, setNotes] = useState(task.notes ?? '')
-  const [activeSection, setActiveSection] = useState<'description' | 'notes'>('description')
   const [externalReference, setExternalReference] = useState(task.external_reference ?? '')
+  const [statusId, setStatusId] = useState(task.column_id)
+  const [priorityId, setPriorityId] = useState(task.priority.id)
+  const [deadline, setDeadline] = useState<string | null>(task.deadline)
+  const [tagIds, setTagIds] = useState<number[]>(task.tags.map((t) => t.id))
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(task.checklist_items)
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<number[]>([])
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [activeSection, setActiveSection] = useState<'description' | 'notes'>('description')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [current, setCurrent] = useState(task)
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const apply = async (payload: Parameters<typeof tasksApi.update>[1]) => {
+  const dirty =
+    title.trim() !== current.title ||
+    description !== (current.description ?? '') ||
+    notes !== (current.notes ?? '') ||
+    externalReference !== (current.external_reference ?? '') ||
+    statusId !== current.column_id ||
+    priorityId !== current.priority.id ||
+    deadline !== current.deadline ||
+    !sameIds(tagIds, current.tags.map((t) => t.id)) ||
+    checklistChanged(current.checklist_items, checklist) ||
+    removedAttachmentIds.length > 0 ||
+    pendingFiles.length > 0
+
+  const seedDrafts = (from: Task) => {
+    setCurrent(from)
+    setTitle(from.title)
+    setDescription(from.description ?? '')
+    setNotes(from.notes ?? '')
+    setExternalReference(from.external_reference ?? '')
+    setStatusId(from.column_id)
+    setPriorityId(from.priority.id)
+    setDeadline(from.deadline)
+    setTagIds(from.tags.map((t) => t.id))
+    setChecklist(from.checklist_items)
+    setRemovedAttachmentIds([])
+    setPendingFiles([])
+  }
+
+  const requestClose = () => {
+    if (dirty) setConfirmingDiscard(true)
+    else onClose()
+  }
+
+  const handleSave = async () => {
+    if (!dirty || saving || !title.trim()) return
+    setSaving(true)
     setSaveError(null)
+    // Once any request has gone through, a later failure leaves the server
+    // partway between the old and new state, so the form must be re-synced.
+    let appliedSomething = false
     try {
-      const updated = await tasksApi.update(current.id, payload)
-      setCurrent(updated)
-      onUpdated(updated)
+      const payload: TaskUpdatePayload = {}
+      if (title.trim() !== current.title) payload.title = title.trim()
+      if (description !== (current.description ?? '')) payload.description = description
+      if (notes !== (current.notes ?? '')) payload.notes = notes
+      if (externalReference !== (current.external_reference ?? '')) payload.external_reference = externalReference || null
+      if (priorityId !== current.priority.id) payload.priority_id = priorityId
+      if (deadline !== current.deadline) payload.deadline = deadline
+      if (!sameIds(tagIds, current.tags.map((t) => t.id))) payload.tag_ids = tagIds
+
+      if (Object.keys(payload).length > 0) {
+        appliedSomething = true
+        await tasksApi.update(current.id, payload)
+      }
+      if (statusId !== current.column_id) {
+        appliedSomething = true
+        await tasksApi.move(current.id, statusId)
+      }
+      if (checklistChanged(current.checklist_items, checklist)) {
+        appliedSomething = true
+        await saveChecklistChanges(current.id, current.checklist_items, checklist)
+      }
+      for (const attachmentId of removedAttachmentIds) {
+        appliedSomething = true
+        await attachmentsApi.remove(current.id, attachmentId)
+      }
+      for (const file of pendingFiles) {
+        appliedSomething = true
+        await attachmentsApi.upload(current.id, file)
+      }
+
+      onUpdated(await tasksApi.get(current.id))
+      onClose()
     } catch (err) {
-      setSaveError(err instanceof ApiError ? err.message : GENERIC_SAVE_ERROR)
+      const message = err instanceof ApiError ? err.message : GENERIC_SAVE_ERROR
+      if (appliedSomething) {
+        try {
+          const fresh = await tasksApi.get(current.id)
+          seedDrafts(fresh)
+          onUpdated(fresh)
+          setSaveError(`${message} Changes made before the error were saved and the form was reloaded.`)
+        } catch {
+          setSaveError(message)
+        }
+      } else {
+        setSaveError(message)
+      }
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -52,11 +153,8 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
     await refreshTags()
   }
 
-  const handleToggleTag = async (tagId: number) => {
-    const has = current.tags.some((t) => t.id === tagId)
-    const nextIds = has ? current.tags.filter((t) => t.id !== tagId).map((t) => t.id) : [...current.tags.map((t) => t.id), tagId]
-    await apply({ tag_ids: nextIds })
-  }
+  const handleToggleTag = (tagId: number) =>
+    setTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
 
   const handleDelete = async () => {
     setDeleteError(null)
@@ -70,9 +168,16 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
   }
 
   const externalUrl =
-    settings.external_reference_base_url && current.external_reference
-      ? `${settings.external_reference_base_url.replace(/\/$/, '')}/${current.external_reference}`
+    settings.external_reference_base_url && externalReference
+      ? `${settings.external_reference_base_url.replace(/\/$/, '')}/${externalReference}`
       : null
+
+  // Hidden columns aren't offered as targets, but a task already sitting in
+  // one keeps showing it so its current status isn't erased.
+  const statusOptions: ListboxOption<number>[] = columns
+    .filter((c) => !c.is_hidden || c.id === current.column_id)
+    .sort((a, b) => a.position - b.position)
+    .map((c) => ({ value: c.id, label: c.emoji ? `${c.emoji} ${c.name}` : c.name }))
 
   const header = (
     <>
@@ -81,7 +186,6 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
         id="task-modal-title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => title.trim() && title !== current.title && apply({ title: title.trim() })}
         className="mt-0.5 w-full bg-transparent text-lg font-semibold text-slate-900 focus:outline-none dark:text-slate-100"
       />
     </>
@@ -95,19 +199,32 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
         </p>
       )}
       <div className="flex justify-between">
-        <Button variant="destructive" onClick={() => setConfirmingDelete(true)}>
+        <Button variant="destructive" onClick={() => setConfirmingDelete(true)} disabled={saving}>
           <Trash2 className="h-4 w-4" strokeWidth={2} /> Delete task
         </Button>
-        <Button variant="outline" onClick={onClose}>
-          Done
-        </Button>
+        <div className="flex items-center gap-2">
+          {dirty && <span className="text-xs text-amber-600 dark:text-amber-400">Unsaved changes</span>}
+          <Button variant="outline" onClick={requestClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="gradient" onClick={handleSave} disabled={!dirty || !title.trim() || saving}>
+            <Save className="h-4 w-4" strokeWidth={2} /> {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
       </div>
     </>
   )
 
   return (
     <>
-      <FloatingWindow onClose={onClose} header={header} footer={footer} ariaLabel="Task details" disableEscape={confirmingDelete}>
+      <FloatingWindow
+        onClose={requestClose}
+        header={header}
+        footer={footer}
+        ariaLabel="Task details"
+        disableEscape={confirmingDelete || confirmingDiscard}
+        defaultWidth={840}
+      >
         <div className="space-y-3">
           {saveError && (
             <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-300" role="alert">
@@ -117,11 +234,12 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
 
           <TaskFormSection>
             <PriorityDeadlineFields
-              priorityId={current.priority.id}
-              onPriorityChange={(priorityId) => apply({ priority_id: priorityId })}
+              status={{ value: statusId, onChange: setStatusId, options: statusOptions }}
+              priorityId={priorityId}
+              onPriorityChange={setPriorityId}
               priorities={priorities}
-              deadline={current.deadline}
-              onDeadlineChange={(deadline) => apply({ deadline })}
+              deadline={deadline}
+              onDeadlineChange={setDeadline}
             />
           </TaskFormSection>
 
@@ -134,26 +252,13 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
               notes={notes}
               onNotesChange={setNotes}
               defaultMode="preview"
-              renderSaveButton={(section) => {
-                const dirty = section === 'description' ? description !== (current.description ?? '') : notes !== (current.notes ?? '')
-                if (!dirty) return null
-                return (
-                  <Button
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => apply(section === 'description' ? { description } : { notes })}
-                  >
-                    Save {section}
-                  </Button>
-                )
-              }}
             />
           </TaskFormSection>
 
           <TaskFormSection>
             <TaskTagsField
               allTags={tags}
-              selectedIds={current.tags.map((t) => t.id)}
+              selectedIds={tagIds}
               onToggle={handleToggleTag}
               onCreateTag={handleCreateTag}
             />
@@ -163,15 +268,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
             <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
               <CheckSquare className="h-3.5 w-3.5" strokeWidth={2} /> Checklist
             </label>
-            <ChecklistPanel
-              taskId={current.id}
-              items={current.checklist_items}
-              onItemsChange={(items) => {
-                const updated = { ...current, checklist_items: items }
-                setCurrent(updated)
-                onUpdated(updated)
-              }}
-            />
+            <ChecklistPanel items={checklist} onItemsChange={setChecklist} />
           </TaskFormSection>
 
           <TaskFormSection>
@@ -180,12 +277,10 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
             </label>
             <AttachmentsPanel
               taskId={current.id}
-              items={current.attachments ?? []}
-              onItemsChange={(attachments) => {
-                const updated = { ...current, attachments }
-                setCurrent(updated)
-                onUpdated(updated)
-              }}
+              items={(current.attachments ?? []).filter((a) => !removedAttachmentIds.includes(a.id))}
+              onRemoveExisting={(id) => setRemovedAttachmentIds((prev) => [...prev, id])}
+              pendingFiles={pendingFiles}
+              onPendingFilesChange={setPendingFiles}
             />
           </TaskFormSection>
 
@@ -196,10 +291,6 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
             <input
               value={externalReference}
               onChange={(e) => setExternalReference(e.target.value)}
-              onBlur={() =>
-                externalReference !== (current.external_reference ?? '') &&
-                apply({ external_reference: externalReference || null })
-              }
               placeholder="e.g. PROJ-123"
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-indigo-500/20"
             />
@@ -225,6 +316,18 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
           destructive
           onConfirm={handleDelete}
           onCancel={() => setConfirmingDelete(false)}
+        />
+      )}
+
+      {confirmingDiscard && (
+        <ConfirmDialog
+          title="Discard unsaved changes?"
+          message="You have changes that haven't been saved. If you close now, they will be lost."
+          confirmLabel="Discard changes"
+          cancelLabel="Keep editing"
+          destructive
+          onConfirm={onClose}
+          onCancel={() => setConfirmingDiscard(false)}
         />
       )}
     </>

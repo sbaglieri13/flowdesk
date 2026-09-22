@@ -50,6 +50,6 @@ export const tasksApi = {
     api.post<Task>(`/tasks/${id}/move`, { column_id, position }),
   reorder: (column_id: number, ordered_task_ids: number[]) =>
     api.post<void>('/tasks/reorder', { column_id, ordered_task_ids }),
-  autoSort: (column_id: number, sort_by: 'priority' | 'deadline') =>
-    api.post<void>('/tasks/auto-sort', { column_id, sort_by }),
+  autoSort: (column_id: number, sort_by: 'priority' | 'deadline', order: 'asc' | 'desc') =>
+    api.post<void>('/tasks/auto-sort', { column_id, sort_by, order }),
 }

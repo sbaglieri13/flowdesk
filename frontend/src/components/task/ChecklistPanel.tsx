@@ -1,83 +1,59 @@
-import { AlertTriangle, ArrowDown, ArrowUp, Pencil, Plus, X } from 'lucide-react'
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { checklistApi } from '../../api/checklist'
-import { useAsyncAction } from '../../hooks/useAsyncAction'
+import { ArrowDown, ArrowUp, Pencil, Plus, X } from 'lucide-react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import type { ChecklistItem } from '../../types'
 import { Button } from '../ui/button'
 
 interface ChecklistPanelProps {
-  taskId: number
   items: ChecklistItem[]
   onItemsChange: (items: ChecklistItem[]) => void
 }
 
-const GENERIC_ERROR = 'Could not update the checklist. Please try again.'
-
-export function ChecklistPanel({ taskId, items, onItemsChange }: ChecklistPanelProps) {
+/** Edits a checklist draft in memory; nothing is sent to the server until the task is saved. */
+export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
   const [newText, setNewText] = useState('')
-  const { error, setError, run: runOrReportError } = useAsyncAction(GENERIC_ERROR)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
   // Escape sets this so the blur it triggers is treated as a cancel rather
   // than a save — keeps a single commit path (the blur handler) instead of
   // two that could both try to save the same edit.
   const editCancelledRef = useRef(false)
-
-  useEffect(() => {
-    if (!error) return
-    const timer = setTimeout(() => setError(null), 4000)
-    return () => clearTimeout(timer)
-  }, [error, setError])
+  // Negative ids mark items that don't exist on the server yet.
+  const nextTempIdRef = useRef(-1)
 
   const doneCount = items.filter((i) => i.is_done).length
   const progress = items.length === 0 ? 0 : Math.round((doneCount / items.length) * 100)
 
-  const handleAdd = () =>
-    runOrReportError(async () => {
-      if (!newText.trim()) return
-      const item = await checklistApi.create(taskId, newText.trim())
-      onItemsChange([...items, item])
-      setNewText('')
-    })
+  const handleAdd = () => {
+    const text = newText.trim()
+    if (!text) return
+    onItemsChange([...items, { id: nextTempIdRef.current--, text, is_done: false, position: items.length }])
+    setNewText('')
+  }
 
   const handleToggle = (itemId: number) =>
-    runOrReportError(async () => {
-      const updated = await checklistApi.toggle(taskId, itemId)
-      onItemsChange(items.map((i) => (i.id === itemId ? updated : i)))
-    })
+    onItemsChange(items.map((i) => (i.id === itemId ? { ...i, is_done: !i.is_done } : i)))
 
-  const handleDelete = (itemId: number) =>
-    runOrReportError(async () => {
-      await checklistApi.remove(taskId, itemId)
-      onItemsChange(items.filter((i) => i.id !== itemId))
-    })
+  const handleDelete = (itemId: number) => onItemsChange(items.filter((i) => i.id !== itemId))
 
-  const handleMove = (index: number, direction: -1 | 1) =>
-    runOrReportError(async () => {
-      const targetIndex = index + direction
-      if (targetIndex < 0 || targetIndex >= items.length) return
-      const reordered = [...items]
-      ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
-      onItemsChange(reordered)
-      await checklistApi.reorder(
-        taskId,
-        reordered.map((i) => i.id),
-      )
-    })
+  const handleMove = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= items.length) return
+    const reordered = [...items]
+    ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
+    onItemsChange(reordered)
+  }
 
   const startEdit = (item: ChecklistItem) => {
     setEditingId(item.id)
     setEditText(item.text)
   }
 
-  const commitEdit = (item: ChecklistItem) =>
-    runOrReportError(async () => {
-      setEditingId(null)
-      const trimmed = editText.trim()
-      if (!trimmed || trimmed === item.text) return
-      const updated = await checklistApi.update(taskId, item.id, { text: trimmed })
-      onItemsChange(items.map((i) => (i.id === item.id ? updated : i)))
-    })
+  const commitEdit = (item: ChecklistItem) => {
+    setEditingId(null)
+    const trimmed = editText.trim()
+    if (!trimmed || trimmed === item.text) return
+    onItemsChange(items.map((i) => (i.id === item.id ? { ...i, text: trimmed } : i)))
+  }
 
   const handleEditBlur = (item: ChecklistItem) => {
     if (editCancelledRef.current) {
@@ -92,6 +68,8 @@ export function ChecklistPanel({ taskId, items, onItemsChange }: ChecklistPanelP
       e.preventDefault()
       e.currentTarget.blur() // commits via handleEditBlur
     } else if (e.key === 'Escape') {
+      // Keeps the surrounding window from also treating this Escape as "close".
+      e.stopPropagation()
       editCancelledRef.current = true
       setEditingId(null)
       e.currentTarget.blur()
@@ -187,12 +165,6 @@ export function ChecklistPanel({ taskId, items, onItemsChange }: ChecklistPanelP
           </li>
         ))}
       </ul>
-
-      {error && (
-        <p role="alert" className="flex items-center gap-1.5 text-xs text-red-500">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {error}
-        </p>
-      )}
 
       <div className="flex items-end gap-2">
         <textarea
