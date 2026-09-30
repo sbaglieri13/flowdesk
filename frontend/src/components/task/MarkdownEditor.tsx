@@ -1,6 +1,7 @@
-import { Eye, Pencil } from 'lucide-react'
+import { Eye, List, Pencil } from 'lucide-react'
 import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
 import rehypeRaw from 'rehype-raw'
 import { TAG_SWATCHES } from '../../utils/tagColors'
 
@@ -47,7 +48,6 @@ export function MarkdownEditor({
 
     const cursorStart = selectionStart + action.before.length
     const cursorEnd = cursorStart + selected.length
-    // Re-apply the selection after React re-renders the textarea with the new value.
     requestAnimationFrame(() => {
       textarea.focus()
       textarea.setSelectionRange(cursorStart, cursorEnd)
@@ -57,6 +57,33 @@ export function MarkdownEditor({
   const applyColor = (color: string) => {
     applyFormat({ title: 'Text color', before: `<span style="color: ${color}">`, after: '</span>' })
     setShowColorPicker(false)
+  }
+
+  const applyBulletList = () => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const { selectionStart, selectionEnd } = textarea
+    const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1
+    const nextBreak = value.indexOf('\n', selectionEnd)
+    const lineEnd = nextBreak === -1 ? value.length : nextBreak
+    const block = value.slice(lineStart, lineEnd)
+    const lines = block.split('\n')
+    const contentLines = lines.filter((line) => line.trim() !== '')
+    const alreadyBulleted = contentLines.length > 0 && contentLines.every((line) => line.startsWith('- '))
+    const transformed = lines
+      .map((line) => {
+        if (alreadyBulleted) return line.startsWith('- ') ? line.slice(2) : line
+        return line.startsWith('- ') ? line : `- ${line}`
+      })
+      .join('\n')
+    const next = value.slice(0, lineStart) + transformed + value.slice(lineEnd)
+    onChange(next)
+
+    const cursor = lineStart + transformed.length
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.setSelectionRange(cursor, cursor)
+    })
   }
 
   const onResizePointerDown = (e: ReactPointerEvent<HTMLElement>) => {
@@ -103,7 +130,6 @@ export function MarkdownEditor({
               <button
                 key={action.title}
                 type="button"
-                // Prevents the textarea from losing its selection before the click fires.
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => applyFormat(action)}
                 title={action.title}
@@ -114,6 +140,16 @@ export function MarkdownEditor({
                 {action.label}
               </button>
             ))}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={applyBulletList}
+              title="Bullet list"
+              aria-label="Bullet list"
+              className="flex w-6 items-center justify-center rounded-md py-1 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              <List className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -169,7 +205,9 @@ export function MarkdownEditor({
       ) : (
         <div className="prose prose-sm max-w-none overflow-x-hidden break-words p-3 text-slate-700 dark:prose-invert dark:text-slate-200 [&_pre]:overflow-x-auto [&_table]:block [&_table]:overflow-x-auto">
           {value.trim() ? (
-            <ReactMarkdown rehypePlugins={[rehypeRaw]}>{value}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+              {value}
+            </ReactMarkdown>
           ) : (
             <p className="text-slate-400 italic">Nothing to preview yet.</p>
           )}

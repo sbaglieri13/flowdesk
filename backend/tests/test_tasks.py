@@ -11,6 +11,7 @@ def test_create_task_assigns_incrementing_display_code(client, columns_by_name):
 def test_update_task_fields(client, columns_by_name, priorities_by_key):
     col_id = columns_by_name["New"].id
     task = client.post("/api/tasks", json={"title": "Draft title", "column_id": col_id}).json()
+    reporter = client.post("/api/reporters", json={"name": "Marco Rossi"}).json()
 
     updated = client.patch(
         f"/api/tasks/{task['id']}",
@@ -18,12 +19,16 @@ def test_update_task_fields(client, columns_by_name, priorities_by_key):
             "title": "Final title",
             "priority_id": priorities_by_key["urgent"].id,
             "external_reference": "PROJ-1",
+            "reporter_id": reporter["id"],
+            "doc_url": "https://example.atlassian.net/wiki/PROJ-1",
         },
     ).json()
 
     assert updated["title"] == "Final title"
     assert updated["priority"]["name"] == "Urgent"
     assert updated["external_reference"] == "PROJ-1"
+    assert updated["reporter"]["name"] == "Marco Rossi"
+    assert updated["doc_url"] == "https://example.atlassian.net/wiki/PROJ-1"
 
 
 def test_delete_task(client, columns_by_name):
@@ -88,13 +93,48 @@ def test_tag_filter_and_no_tag_sentinel(client, columns_by_name):
     by_tag = client.get("/api/tasks", params={"tag_id": tag["id"]}).json()
     assert [t["title"] for t in by_tag] == ["Tagged"]
 
-    # -1 is the frontend's sentinel for "no tags at all" — never a real tag id.
     by_no_tag = client.get("/api/tasks", params={"tag_id": -1}).json()
     assert [t["title"] for t in by_no_tag] == ["Untagged"]
 
     by_either = client.get("/api/tasks", params=[("tag_id", tag["id"]), ("tag_id", -1)]).json()
     titles = {t["title"] for t in by_either}
     assert titles == {"Tagged", "Untagged"}
+
+
+def test_type_filter_and_unassigned_sentinel(client, columns_by_name):
+    col_id = columns_by_name["New"].id
+    task_type = client.get("/api/task-types").json()[0]
+
+    client.post("/api/tasks", json={"title": "Typed", "column_id": col_id, "type_id": task_type["id"]})
+    client.post("/api/tasks", json={"title": "Untyped", "column_id": col_id})
+
+    by_type = client.get("/api/tasks", params={"type_id": task_type["id"]}).json()
+    assert [t["title"] for t in by_type] == ["Typed"]
+
+    by_unassigned = client.get("/api/tasks", params={"type_id": -1}).json()
+    assert [t["title"] for t in by_unassigned] == ["Untyped"]
+
+    by_either = client.get("/api/tasks", params=[("type_id", task_type["id"]), ("type_id", -1)]).json()
+    titles = {t["title"] for t in by_either}
+    assert titles == {"Typed", "Untyped"}
+
+
+def test_reporter_filter_and_no_reporter_sentinel(client, columns_by_name):
+    col_id = columns_by_name["New"].id
+    reporter = client.post("/api/reporters", json={"name": "Marco Rossi"}).json()
+
+    client.post("/api/tasks", json={"title": "Reported", "column_id": col_id, "reporter_id": reporter["id"]})
+    client.post("/api/tasks", json={"title": "Unreported", "column_id": col_id})
+
+    by_reporter = client.get("/api/tasks", params={"reporter_id": reporter["id"]}).json()
+    assert [t["title"] for t in by_reporter] == ["Reported"]
+
+    by_none = client.get("/api/tasks", params={"reporter_id": -1}).json()
+    assert [t["title"] for t in by_none] == ["Unreported"]
+
+    by_either = client.get("/api/tasks", params=[("reporter_id", reporter["id"]), ("reporter_id", -1)]).json()
+    titles = {t["title"] for t in by_either}
+    assert titles == {"Reported", "Unreported"}
 
 
 def test_search_matches_notes_and_external_reference(client, columns_by_name):

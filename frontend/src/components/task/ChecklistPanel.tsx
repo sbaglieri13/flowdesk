@@ -8,16 +8,11 @@ interface ChecklistPanelProps {
   onItemsChange: (items: ChecklistItem[]) => void
 }
 
-/** Edits a checklist draft in memory; nothing is sent to the server until the task is saved. */
 export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
   const [newText, setNewText] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
-  // Escape sets this so the blur it triggers is treated as a cancel rather
-  // than a save — keeps a single commit path (the blur handler) instead of
-  // two that could both try to save the same edit.
   const editCancelledRef = useRef(false)
-  // Negative ids mark items that don't exist on the server yet.
   const nextTempIdRef = useRef(-1)
 
   const doneCount = items.filter((i) => i.is_done).length
@@ -66,9 +61,8 @@ export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
   const handleEditKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      e.currentTarget.blur() // commits via handleEditBlur
+      e.currentTarget.blur()
     } else if (e.key === 'Escape') {
-      // Keeps the surrounding window from also treating this Escape as "close".
       e.stopPropagation()
       editCancelledRef.current = true
       setEditingId(null)

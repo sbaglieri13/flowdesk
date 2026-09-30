@@ -39,6 +39,17 @@ def test_deleting_column_moves_its_tasks_to_the_default_new_column(client, colum
     assert moved["column_id"] == new_col_id
 
 
+def test_done_column_seeded_as_done_state_others_are_not(columns_by_name):
+    assert columns_by_name["Done"].is_done_state is True
+    assert columns_by_name["New"].is_done_state is False
+
+
+def test_any_column_can_toggle_done_state(client, columns_by_name):
+    new_id = columns_by_name["New"].id
+    updated = client.patch(f"/api/columns/{new_id}", json={"is_done_state": True}).json()
+    assert updated["is_done_state"] is True
+
+
 def test_default_column_cannot_be_renamed_or_deleted(client, columns_by_name):
     new_col_id = columns_by_name["New"].id
 

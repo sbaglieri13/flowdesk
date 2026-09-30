@@ -1,5 +1,3 @@
-"""Checklist item CRUD, reordering and toggling, nested under a task."""
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session

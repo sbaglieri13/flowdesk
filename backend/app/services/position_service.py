@@ -1,11 +1,3 @@
-"""Helpers for maintaining drag-and-drop ordering with cheap reordering.
-
-Positions are stored with gaps (multiples of ``POSITION_GAP``) so that most
-reorders only need to touch the moved row. A full reorder request (drag
-settle, or the on-demand auto-sort) simply rewrites all positions in a
-column as ``index * POSITION_GAP``.
-"""
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 

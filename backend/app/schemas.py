@@ -1,13 +1,9 @@
-"""Pydantic request/response schemas."""
-
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
-# --- Columns ---------------------------------------------------------------
 
 
 class BoardColumnCreate(BaseModel):
@@ -23,6 +19,7 @@ class BoardColumnUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     emoji: str | None = None
     is_hidden: bool | None = None
+    is_done_state: bool | None = None
 
 
 class BoardColumnRead(BaseModel):
@@ -34,6 +31,7 @@ class BoardColumnRead(BaseModel):
     position: int
     is_default: bool
     is_hidden: bool
+    is_done_state: bool
     created_at: datetime
     updated_at: datetime
 
@@ -45,9 +43,6 @@ class BoardColumnReorderItem(BaseModel):
 
 class BoardColumnReorderRequest(BaseModel):
     items: list[BoardColumnReorderItem]
-
-
-# --- Tags --------------------------------------------------------------------
 
 
 class TagCreate(BaseModel):
@@ -75,7 +70,23 @@ class TagRead(BaseModel):
     emoji: str | None
 
 
-# --- Priorities --------------------------------------------------------------
+class ReporterCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=100)
+
+
+class ReporterUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=100)
+
+
+class ReporterRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
 
 
 class PriorityCreate(BaseModel):
@@ -107,7 +118,33 @@ class PriorityRead(BaseModel):
     is_hidden: bool
 
 
-# --- Checklist items -----------------------------------------------------
+class TaskTypeCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=50)
+    emoji: str = Field(min_length=1, max_length=8)
+    color: str
+
+
+class TaskTypeUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    emoji: str | None = Field(default=None, min_length=1, max_length=8)
+    color: str | None = None
+    is_hidden: bool | None = None
+
+
+class TaskTypeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    emoji: str
+    color: str
+    position: int
+    is_default: bool
+    is_hidden: bool
 
 
 class ChecklistItemCreate(BaseModel):
@@ -136,9 +173,6 @@ class ChecklistReorderRequest(BaseModel):
     ordered_item_ids: list[int]
 
 
-# --- Attachments -----------------------------------------------------------
-
-
 class AttachmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -149,7 +183,30 @@ class AttachmentRead(BaseModel):
     created_at: datetime
 
 
-# --- Tasks ---------------------------------------------------------------
+class TimeEntryCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    hours: float = Field(gt=0, le=999)
+    note: str | None = Field(default=None, max_length=200)
+    logged_date: date | None = None
+
+
+class TimeEntryUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    hours: float | None = Field(default=None, gt=0, le=999)
+    note: str | None = Field(default=None, max_length=200)
+    logged_date: date | None = None
+
+
+class TimeEntryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    hours: float
+    note: str | None
+    logged_date: date
+    created_at: datetime
 
 
 class TaskCreate(BaseModel):
@@ -159,11 +216,12 @@ class TaskCreate(BaseModel):
     description: str | None = None
     notes: str | None = None
     column_id: int
-    # None resolves to the "Medium" default priority (see task_service);
-    # required end-to-end would force every API caller to look one up first.
     priority_id: int | None = None
+    type_id: int | None = None
     deadline: date | None = None
     external_reference: str | None = Field(default=None, max_length=100)
+    reporter_id: int | None = None
+    doc_url: str | None = Field(default=None, max_length=500)
     tag_ids: list[int] = []
     checklist_items: list[str] = []
 
@@ -175,8 +233,11 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     notes: str | None = None
     priority_id: int | None = None
+    type_id: int | None = None
     deadline: date | None = None
     external_reference: str | None = Field(default=None, max_length=100)
+    reporter_id: int | None = None
+    doc_url: str | None = Field(default=None, max_length=500)
     tag_ids: list[int] | None = None
 
 
@@ -191,20 +252,27 @@ class TaskRead(BaseModel):
     column_id: int
     position: int
     priority: PriorityRead
+    type: TaskTypeRead | None
     deadline: date | None
     external_reference: str | None
     external_reference_url: str | None = None
+    reporter: ReporterRead | None
+    doc_url: str | None
     created_at: datetime
     updated_at: datetime
+    closed_at: datetime | None
     tags: list[TagRead]
     checklist_items: list[ChecklistItemRead]
     attachments: list[AttachmentRead] = []
+    time_entries: list[TimeEntryRead] = []
+    total_hours: float = 0
 
     @classmethod
     def from_task(cls, task, base_url: str | None) -> TaskRead:
         data = cls.model_validate(task).model_dump()
         if base_url and task.external_reference:
             data["external_reference_url"] = f"{base_url.rstrip('/')}/{task.external_reference}"
+        data["total_hours"] = round(sum(e.hours for e in task.time_entries), 2)
         return cls(**data)
 
 
@@ -221,12 +289,7 @@ class TaskReorderRequest(BaseModel):
 class TaskAutoSortRequest(BaseModel):
     column_id: int
     sort_by: Literal["priority", "deadline"]
-    # Direction of the sort. Defaults per key: priority "desc" (highest first),
-    # deadline "asc" (soonest first).
     order: Literal["asc", "desc"] | None = None
-
-
-# --- Settings --------------------------------------------------------------
 
 
 class SettingsRead(BaseModel):
@@ -237,7 +300,35 @@ class SettingsUpdate(BaseModel):
     external_reference_base_url: str | None = None
 
 
-# --- Backup ------------------------------------------------------------------
+class StatsBucketRead(BaseModel):
+    label: str
+    period_start: date
+    tasks_closed: int
+    hours_logged: float
+
+
+class StatsBreakdownItemRead(BaseModel):
+    id: int | None
+    label: str
+    emoji: str | None = None
+    color: str | None = None
+    count: int
+
+
+class StatsOverviewRead(BaseModel):
+    since: date
+    until: date
+    bucket: Literal["day", "week", "month"]
+    open_tasks: int
+    closed_tasks: int
+    total_tasks: int
+    avg_close_hours: float | None
+    avg_closed_per_bucket: float
+    total_hours_logged: float
+    buckets: list[StatsBucketRead]
+    by_type: list[StatsBreakdownItemRead]
+    by_priority: list[StatsBreakdownItemRead]
+    by_reporter: list[StatsBreakdownItemRead]
 
 
 class BackupInfo(BaseModel):

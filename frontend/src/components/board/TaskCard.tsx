@@ -27,7 +27,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className="group cursor-pointer rounded-xl border border-slate-200/80 bg-white p-3 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-indigo-300/70 hover:shadow-soft-lg active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-500/50"
+      className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-3 shadow-soft transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-soft-lg active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-500/50"
     >
       <TaskCardContent task={task} />
     </div>

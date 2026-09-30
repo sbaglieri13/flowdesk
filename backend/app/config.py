@@ -1,5 +1,3 @@
-"""Central configuration: filesystem paths and server settings."""
-
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -11,7 +9,6 @@ DB_PATH = DATA_DIR / "flowdesk.db"
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-# Never expose this beyond the local machine.
 HOST = "127.0.0.1"
 PORT = 8000
 

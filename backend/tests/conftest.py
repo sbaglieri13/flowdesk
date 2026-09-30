@@ -1,12 +1,3 @@
-"""Shared test fixtures: an isolated temp SQLite db per test, never the real one.
-
-The FastAPI app's own startup event (which initializes/seeds the REAL
-database at ``data/flowdesk.db``) is intentionally never triggered here —
-we use a plain ``TestClient`` without the ``with`` context manager, which
-skips the ASGI lifespan/startup handlers entirely, and instead seed a
-temporary engine ourselves.
-"""
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -14,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.app.database import Base, get_db
 from backend.app.main import app
-from backend.app.models import BoardColumn, Priority
+from backend.app.models import BoardColumn, Priority, TaskType
 from backend.app.seed import seed_if_empty
 
 
@@ -48,3 +39,8 @@ def columns_by_name(db_session):
 @pytest.fixture()
 def priorities_by_key(db_session):
     return {p.key: p for p in db_session.query(Priority).all()}
+
+
+@pytest.fixture()
+def task_types_by_key(db_session):
+    return {t.key: t for t in db_session.query(TaskType).all()}

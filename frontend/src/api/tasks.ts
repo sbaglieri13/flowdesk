@@ -5,6 +5,8 @@ export interface TaskFilters {
   column_id?: number
   priority_id?: number[]
   tag_id?: number[]
+  type_id?: number[]
+  reporter_id?: number[]
   search?: string
 }
 
@@ -14,8 +16,11 @@ export interface TaskCreatePayload {
   notes?: string | null
   column_id: number
   priority_id?: number
+  type_id?: number | null
   deadline?: string | null
   external_reference?: string | null
+  reporter_id?: number | null
+  doc_url?: string | null
   tag_ids?: number[]
   checklist_items?: string[]
 }
@@ -25,8 +30,11 @@ export interface TaskUpdatePayload {
   description?: string | null
   notes?: string | null
   priority_id?: number
+  type_id?: number | null
   deadline?: string | null
   external_reference?: string | null
+  reporter_id?: number | null
+  doc_url?: string | null
   tag_ids?: number[]
 }
 
@@ -35,6 +43,8 @@ function buildQuery(filters: TaskFilters): string {
   if (filters.column_id !== undefined) params.set('column_id', String(filters.column_id))
   for (const id of filters.priority_id ?? []) params.append('priority_id', String(id))
   for (const id of filters.tag_id ?? []) params.append('tag_id', String(id))
+  for (const id of filters.type_id ?? []) params.append('type_id', String(id))
+  for (const id of filters.reporter_id ?? []) params.append('reporter_id', String(id))
   if (filters.search) params.set('search', filters.search)
   const qs = params.toString()
   return qs ? `?${qs}` : ''

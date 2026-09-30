@@ -8,8 +8,6 @@ interface DraftAttachmentsEditorProps {
   onChange: (files: File[]) => void
 }
 
-/** Stages files to upload once the task exists — a new task has no id yet, so
- * nothing can actually be attached until the create request resolves. */
 export function DraftAttachmentsEditor({ files, onChange }: DraftAttachmentsEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 

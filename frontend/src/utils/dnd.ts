@@ -1,10 +1,3 @@
-/**
- * dnd-kit requires every draggable/droppable id to be unique across the
- * whole DndContext. Columns and tasks are separate auto-increment sequences
- * in the database, so their raw numeric ids can collide (e.g. column #1 and
- * task #1 both existing) — namespacing them here removes that ambiguity.
- */
-
 export type DndId = `column-${number}` | `task-${number}`
 
 export function columnDndId(id: number): DndId {

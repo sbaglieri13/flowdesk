@@ -1,4 +1,4 @@
-import { CheckCircle2, ListChecks } from 'lucide-react'
+import { CheckCircle2, Clock, ListChecks } from 'lucide-react'
 import { useBoardData } from '../../state/BoardContext'
 import type { Task } from '../../types'
 import { DEADLINE_BADGE_CLASSES, DEADLINE_ICONS, formatDeadline, getDeadlineStatus } from '../../utils/deadline'
@@ -30,9 +30,12 @@ export function TaskCardContent({ task }: { task: Task }) {
             </>
           )}
         </div>
-        <Badge color={task.priority.color} className="shrink-0">
-          {task.priority.emoji} {task.priority.name}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-1">
+          {task.type && <Badge color={task.type.color}>{task.type.emoji}</Badge>}
+          <Badge color={task.priority.color}>
+            {task.priority.emoji} {task.priority.name}
+          </Badge>
+        </div>
       </div>
 
       <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{task.title}</p>
@@ -40,8 +43,6 @@ export function TaskCardContent({ task }: { task: Task }) {
       {task.tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {task.tags.map((tag) => {
-            // Prefer the live tag from board state — the task's own copy goes
-            // stale (old color/name/emoji) until the task itself is refetched.
             const liveTag = allTags.find((t) => t.id === tag.id) ?? tag
             return (
               <Badge key={tag.id} color={liveTag.color} className="text-[10px]">
@@ -68,6 +69,12 @@ export function TaskCardContent({ task }: { task: Task }) {
               <ListChecks className="h-3 w-3" strokeWidth={2.25} />
             )}
             {doneCount}/{task.checklist_items.length}
+          </span>
+        )}
+        {task.total_hours > 0 && (
+          <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
+            <Clock className="h-3 w-3" strokeWidth={2.25} />
+            {task.total_hours % 1 === 0 ? task.total_hours : task.total_hours.toFixed(2)}h
           </span>
         )}
       </div>

@@ -1,5 +1,3 @@
-"""Export/list/restore operations on the SQLite database file."""
-
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -18,7 +16,6 @@ def _backup_info(path: Path) -> dict:
 
 
 def _safe_backup_path(filename: str) -> Path:
-    """Resolve a backup filename to a path guaranteed to live inside BACKUPS_DIR."""
     candidate = config.BACKUPS_DIR / Path(filename).name
     if candidate.resolve().parent != config.BACKUPS_DIR.resolve():
         raise ValueError("Invalid backup filename")
@@ -29,7 +26,7 @@ def export_backup() -> dict:
     config.ensure_data_dirs()
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     dest = config.BACKUPS_DIR / f"flowdesk-{timestamp}.db"
-    engine.dispose()  # release SQLite file locks before copying
+    engine.dispose()
     shutil.copy2(config.DB_PATH, dest)
     return _backup_info(dest)
 

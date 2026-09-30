@@ -1,5 +1,3 @@
-"""Tag CRUD."""
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -27,9 +25,6 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db)):
     try:
         db.commit()
     except IntegrityError as exc:
-        # Two identical creates can both pass the check above before either
-        # commits (e.g. a double-click); the unique constraint is the real
-        # guard, so translate its failure into the same friendly 409.
         db.rollback()
         raise HTTPException(409, DUPLICATE_NAME_ERROR) from exc
     db.refresh(tag)

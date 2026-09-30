@@ -1,7 +1,7 @@
-import { Settings } from 'lucide-react'
+import { BarChart3, Settings } from 'lucide-react'
 import { ThemeToggle } from '../common/ThemeToggle'
 
-export type View = 'board' | 'settings'
+export type View = 'board' | 'stats' | 'settings'
 
 interface NavBarProps {
   view: View
@@ -34,6 +34,18 @@ export function NavBar({ view, onViewChange }: NavBarProps) {
       </button>
 
       <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onViewChange(view === 'stats' ? 'board' : 'stats')}
+          aria-label="Statistics"
+          className={`flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition ${
+            view === 'stats'
+              ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300'
+              : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
+          }`}
+        >
+          <BarChart3 className="h-4 w-4" strokeWidth={2} /> Stats
+        </button>
         <button
           type="button"
           onClick={() => onViewChange(view === 'settings' ? 'board' : 'settings')}

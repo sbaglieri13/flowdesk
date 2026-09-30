@@ -21,9 +21,6 @@ export function TagPicker({ allTags, selectedIds, onToggle, onCreateTag }: TagPi
   const [submitting, setSubmitting] = useState(false)
 
   const handleCreate = async () => {
-    // Guards against a duplicate in-flight request (e.g. an impatient
-    // double-click), which previously raced past the backend's uniqueness
-    // check and surfaced as a confusing generic error.
     if (!name.trim() || submitting) return
     setError(null)
     setSubmitting(true)

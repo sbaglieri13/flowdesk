@@ -11,8 +11,6 @@ export function DraftChecklistEditor({ items, onChange }: DraftChecklistEditorPr
   const [newText, setNewText] = useState('')
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
-  // See ChecklistPanel: Escape sets this so the blur it triggers is treated
-  // as a cancel rather than a save.
   const editCancelledRef = useRef(false)
 
   const handleAdd = () => {
@@ -48,7 +46,7 @@ export function DraftChecklistEditor({ items, onChange }: DraftChecklistEditorPr
   const handleEditKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      e.currentTarget.blur() // commits via handleEditBlur
+      e.currentTarget.blur()
     } else if (e.key === 'Escape') {
       editCancelledRef.current = true
       setEditingIndex(null)

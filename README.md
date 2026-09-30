@@ -11,28 +11,25 @@ Flowdesk is a local-only, self-hosted Kanban board for tracking your own
 work. It runs entirely on your machine, with no accounts and no cloud, and
 stores everything in a single SQLite file.
 
-## Preview
-
-<p align="center">
-  <img src="docs/screenshots/board.png" alt="Board view" width="720"><br>
-  <sub>The board — columns, drag-and-drop cards, filters</sub>
-</p>
-<p align="center">
-  <img src="docs/screenshots/task-detail.png" alt="Task detail view" width="480"><br>
-  <sub>Task detail — description, tags, checklist, attachments</sub>
-</p>
-
 ## Features
 
 - Drag-and-drop board with fully customizable columns
-- Tasks with Markdown description/notes (bold, italic, underline, color),
-  status, priority, deadline, tags, checklist, and file attachments
+- Tasks with Markdown description/notes (bold, italic, underline, color,
+  bullet lists), status, type, priority, deadline, tags, checklist, and
+  file attachments
+- Reporter (picked from a managed list, or added inline from the task) and a
+  documentation link (Confluence, Notion, a wiki page, ...) per task
+- Per-task time tracking: log hours worked with a date and an optional note;
+  the running total shows on the card and in the task's detail window
 - Move a task between columns by dragging it or from the Status dropdown in
   its detail window
 - Task edits are saved only when you press Save; closing with unsaved changes
   asks for confirmation
 - Per-column auto-sort by priority or deadline, in either direction
-- Search and filter by text, priority, or tag
+- A statistics page: open/closed tasks, average time to close, tasks closed
+  and hours logged over a custom or preset date range (or all time),
+  broken down by day/week/month and by type, priority, and reporter
+- Search and filter by text, priority, tag, type, or reporter
 - Draggable, resizable, maximizable windows for tasks and settings
 - Light and dark theme
 - Manual backup export/restore
@@ -57,7 +54,7 @@ frontend/src/
   components/ui/           Small design-system primitives (Button, Badge, Card)
   hooks/                   Reusable stateful logic (async actions, floating panels, ...)
   lib/                     Shared frontend utilities (e.g. `cn` for class merging)
-  pages/                   BoardPage, SettingsPage
+  pages/                   BoardPage, StatsPage, SettingsPage
   state/                   Theme and board-data React contexts
 data/                      SQLite database, backups, attachments (gitignored)
 ```
@@ -110,10 +107,6 @@ npm run dev                             # frontend dev server (from frontend/)
 ```
 
 The Vite dev server proxies `/api` to `http://127.0.0.1:8000`.
-
-To retake the screenshots above with fictional data instead of your real
-board, run `python demo/serve_demo.py` — it serves an isolated, seeded-once
-demo database on `http://127.0.0.1:8010` and never touches `data/`.
 
 ## Testing & linting
 

@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 
-/** Calls `onEscape` when the Escape key is pressed while this hook is mounted. */
 export function useEscapeKey(onEscape: () => void): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -12,14 +12,16 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Flag, Settings2, Tag as TagIcon } from 'lucide-react'
+import { AlertTriangle, Flag, Settings2, Shapes, Tag as TagIcon, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { tasksApi } from '../api/tasks'
 import { BoardColumn } from '../components/board/BoardColumn'
 import { ColumnManager } from '../components/board/ColumnManager'
 import { PriorityManager } from '../components/board/PriorityManager'
+import { ReporterManager } from '../components/board/ReporterManager'
 import { TagManager } from '../components/board/TagManager'
 import { TaskCardContent } from '../components/board/TaskCardContent'
+import { TaskTypeManager } from '../components/board/TaskTypeManager'
 import { SearchFilterBar, type TaskFiltersState } from '../components/common/SearchFilterBar'
 import { TaskCreateModal } from '../components/task/TaskCreateModal'
 import { TaskModal } from '../components/task/TaskModal'
@@ -27,30 +29,39 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useBoardData } from '../state/BoardContext'
 import type { Task } from '../types'
 import { parseDndId } from '../utils/dnd'
-import { IMPOSSIBLE_PRIORITY_ID, IMPOSSIBLE_TAG_ID, NO_TAG_FILTER_ID } from '../utils/taskFilters'
+import {
+  IMPOSSIBLE_PRIORITY_ID,
+  IMPOSSIBLE_REPORTER_ID,
+  IMPOSSIBLE_TAG_ID,
+  IMPOSSIBLE_TYPE_ID,
+  NO_REPORTER_FILTER_ID,
+  NO_TAG_FILTER_ID,
+  NO_TYPE_FILTER_ID,
+} from '../utils/taskFilters'
 
 const SEARCH_DEBOUNCE_MS = 300
 
-/**
- * Resolve whichever droppable the pointer is actually over first; only fall
- * back to bounding-box overlap (dnd-kit's default) when nothing is under the
- * cursor, e.g. a fast flick past a short/empty column. Using rect overlap
- * alone made the highlighted drop target frequently disagree with where the
- * pointer visually was.
- */
 const collisionDetection: CollisionDetection = (args) => {
   const pointerHits = pointerWithin(args)
   return pointerHits.length > 0 ? pointerHits : rectIntersection(args)
 }
 
 export function BoardPage() {
-  const { columns, tags, priorities, loading } = useBoardData()
+  const { columns, tags, priorities, taskTypes, reporters, loading } = useBoardData()
   const [tasks, setTasks] = useState<Task[]>([])
-  const [filters, setFilters] = useState<TaskFiltersState>({ search: '', priorityIds: [], tagIds: [] })
+  const [filters, setFilters] = useState<TaskFiltersState>({
+    search: '',
+    priorityIds: [],
+    tagIds: [],
+    typeIds: [],
+    reporterIds: [],
+  })
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [managingColumns, setManagingColumns] = useState(false)
   const [managingTags, setManagingTags] = useState(false)
   const [managingPriorities, setManagingPriorities] = useState(false)
+  const [managingTaskTypes, setManagingTaskTypes] = useState(false)
+  const [managingReporters, setManagingReporters] = useState(false)
   const [creatingInColumnId, setCreatingInColumnId] = useState<number | null>(null)
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [boardError, setBoardError] = useState<string | null>(null)
@@ -59,14 +70,8 @@ export function BoardPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
-  // Only the free-text field is debounced — priority/tag filters are discrete
-  // selections that should apply the instant they're picked, not after a delay.
   const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS)
 
-  // Seeds the priority/tag filters with every id checked once board data has
-  // loaded, so "select all" starts genuinely (not just visually) selected —
-  // runs exactly once, otherwise it would keep re-including newly created
-  // tags/priorities into a filter the user has since deliberately narrowed.
   const filtersSeededRef = useRef(false)
   useEffect(() => {
     if (loading || filtersSeededRef.current) return
@@ -75,25 +80,25 @@ export function BoardPage() {
       ...prev,
       priorityIds: priorities.filter((p) => !p.is_hidden).map((p) => p.id),
       tagIds: [NO_TAG_FILTER_ID, ...tags.map((t) => t.id)],
+      typeIds: [NO_TYPE_FILTER_ID, ...taskTypes.map((t) => t.id)],
+      reporterIds: [NO_REPORTER_FILTER_ID, ...reporters.map((r) => r.id)],
     }))
-  }, [loading, priorities, tags])
+  }, [loading, priorities, tags, taskTypes, reporters])
 
   const loadTasks = () => {
     tasksApi
       .list({
         search: debouncedSearch || undefined,
-        // An empty array here means every priority/tag was explicitly
-        // deselected, not "no filter" — omitting the param would instead
-        // show everything, so an impossible id is sent to force zero
-        // matches (see utils/taskFilters).
         priority_id: filters.priorityIds.length ? filters.priorityIds : [IMPOSSIBLE_PRIORITY_ID],
         tag_id: filters.tagIds.length ? filters.tagIds : [IMPOSSIBLE_TAG_ID],
+        type_id: filters.typeIds.length ? filters.typeIds : [IMPOSSIBLE_TYPE_ID],
+        reporter_id: filters.reporterIds.length ? filters.reporterIds : [IMPOSSIBLE_REPORTER_ID],
       })
       .then(setTasks)
       .catch(() => setBoardError('Could not load tasks. Check the server and try again.'))
   }
 
-  useEffect(loadTasks, [debouncedSearch, filters.priorityIds, filters.tagIds])
+  useEffect(loadTasks, [debouncedSearch, filters.priorityIds, filters.tagIds, filters.typeIds, filters.reporterIds])
 
   useEffect(() => {
     if (!boardError) return
@@ -123,16 +128,11 @@ export function BoardPage() {
     if (targetColumnId === undefined) return
 
     if (activeTask.column_id !== targetColumnId) {
-      // Move it in local state before the request resolves — otherwise the
-      // card briefly renders back in its old column (still full opacity,
-      // since dragging has already ended) until the response comes back.
       setTasks((prev) => prev.map((t) => (t.id === activeTask.id ? { ...t, column_id: targetColumnId } : t)))
       try {
         const updated = await tasksApi.move(activeTask.id, targetColumnId)
         setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
       } catch {
-        // The optimistic move above is now wrong — reload from the server
-        // rather than leave the board showing a state it never actually reached.
         setBoardError('Could not move the task. Reloading the board.')
         loadTasks()
       }
@@ -172,7 +172,7 @@ export function BoardPage() {
   }
 
   return (
-    <div className="relative flex h-full flex-col bg-gradient-to-b from-slate-50 to-slate-100/50 p-4 dark:from-slate-950 dark:to-slate-900">
+    <div className="relative flex h-full flex-col bg-gradient-to-br from-indigo-100/70 via-slate-100 to-slate-200/70 p-4 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20">
       {boardError && (
         <div
           role="alert"
@@ -182,15 +182,27 @@ export function BoardPage() {
         </div>
       )}
       <div className="mb-4 flex flex-wrap items-stretch gap-3">
-        <SearchFilterBar filters={filters} onChange={setFilters} tags={tags} priorities={priorities} />
+        <SearchFilterBar
+          filters={filters}
+          onChange={setFilters}
+          tags={tags}
+          priorities={priorities}
+          taskTypes={taskTypes}
+          reporters={reporters}
+        />
 
-        <div className="flex w-52 shrink-0 flex-col rounded-xl border border-slate-200/80 bg-white/80 p-3 shadow-soft dark:border-slate-700 dark:bg-slate-800/60">
-          <span className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">Board setup</span>
-          <div className="grid grid-cols-3 gap-2">
+        <div className="flex shrink-0 flex-col justify-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-soft dark:border-slate-700 dark:bg-slate-800/60">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+              <Settings2 className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </span>
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Board setup</span>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
             <button
               type="button"
               onClick={() => setManagingTags(true)}
-              className="flex flex-col items-center gap-1 rounded-lg bg-slate-100 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               <TagIcon className="h-4 w-4" strokeWidth={2} />
               Tags
@@ -198,15 +210,31 @@ export function BoardPage() {
             <button
               type="button"
               onClick={() => setManagingPriorities(true)}
-              className="flex flex-col items-center gap-1 rounded-lg bg-slate-100 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               <Flag className="h-4 w-4" strokeWidth={2} />
               Priority
             </button>
             <button
               type="button"
+              onClick={() => setManagingTaskTypes(true)}
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              <Shapes className="h-4 w-4" strokeWidth={2} />
+              Type
+            </button>
+            <button
+              type="button"
+              onClick={() => setManagingReporters(true)}
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+            >
+              <UserRound className="h-4 w-4" strokeWidth={2} />
+              Reporters
+            </button>
+            <button
+              type="button"
               onClick={() => setManagingColumns(true)}
-              className="flex flex-col items-center gap-1 rounded-lg bg-slate-100 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-100 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
             >
               <Settings2 className="h-4 w-4" strokeWidth={2} />
               Columns
@@ -268,6 +296,8 @@ export function BoardPage() {
       {managingColumns && <ColumnManager onClose={() => setManagingColumns(false)} />}
       {managingTags && <TagManager onClose={() => setManagingTags(false)} />}
       {managingPriorities && <PriorityManager onClose={() => setManagingPriorities(false)} />}
+      {managingTaskTypes && <TaskTypeManager onClose={() => setManagingTaskTypes(false)} />}
+      {managingReporters && <ReporterManager onClose={() => setManagingReporters(false)} />}
     </div>
   )
 }

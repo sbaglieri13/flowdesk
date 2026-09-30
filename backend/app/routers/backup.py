@@ -1,5 +1,3 @@
-"""Manual backup export/list/restore of the SQLite database file."""
-
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 

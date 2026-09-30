@@ -18,7 +18,6 @@ interface FloatingWindowProps {
   minHeight?: number
 }
 
-/** A modal panel that can be dragged by its header, resized from its corner, and maximized. */
 export function FloatingWindow({
   header,
   footer,

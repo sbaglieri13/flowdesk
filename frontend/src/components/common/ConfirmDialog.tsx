@@ -28,8 +28,6 @@ export function ConfirmDialog({
   useEscapeKey(onCancel)
 
   useEffect(() => {
-    // Focus the non-destructive action by default, so hitting Enter out of
-    // habit after a keyboard-driven flow doesn't accidentally confirm delete.
     cancelButtonRef.current?.focus()
   }, [])
 

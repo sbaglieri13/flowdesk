@@ -15,8 +15,6 @@ interface UseFloatingPanelOptions {
 }
 
 const VIEWPORT_MARGIN = 16
-// How much of the header must stay reachable when dragged near an edge, so a
-// panel can never be flicked fully off-screen with no way to grab it back.
 const MIN_VISIBLE = 160
 
 function initialRect(defaultWidth: number, defaultHeight: number): Rect {
@@ -30,12 +28,6 @@ function initialRect(defaultWidth: number, defaultHeight: number): Rect {
   }
 }
 
-/**
- * Drag/resize/maximize state for a floating modal panel. Position and size
- * are plain pixel values (not CSS transforms) so mount/unmount animations on
- * the same element can keep using `transform` for scale/opacity without the
- * two fighting over that property.
- */
 export function useFloatingPanel({ defaultWidth, defaultHeight, minWidth = 320, minHeight = 220 }: UseFloatingPanelOptions) {
   const [rect, setRect] = useState<Rect>(() => initialRect(defaultWidth, defaultHeight))
   const [maximized, setMaximized] = useState(false)
@@ -55,8 +47,6 @@ export function useFloatingPanel({ defaultWidth, defaultHeight, minWidth = 320, 
   const onDragPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
     if (maximized) return
     const target = e.target as HTMLElement
-    // Let clicks on interactive header content (title inputs, buttons) behave
-    // normally instead of starting a drag.
     if (target.closest('input, textarea, select, button, a, [data-no-drag]')) return
 
     const startX = e.clientX

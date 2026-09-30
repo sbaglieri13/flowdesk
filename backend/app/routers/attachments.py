@@ -1,5 +1,3 @@
-"""File attachment upload/list/download/delete, nested under a task."""
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session

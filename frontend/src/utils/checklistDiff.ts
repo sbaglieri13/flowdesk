@@ -1,7 +1,6 @@
 import { checklistApi } from '../api/checklist'
 import type { ChecklistItem } from '../types'
 
-/** Items added in the editor before saving get a negative id until the server assigns a real one. */
 export function isDraftChecklistItem(item: ChecklistItem): boolean {
   return item.id < 0
 }
@@ -11,7 +10,6 @@ export function checklistChanged(original: ChecklistItem[], draft: ChecklistItem
   return original.some((o, i) => o.id !== draft[i].id || o.text !== draft[i].text || o.is_done !== draft[i].is_done)
 }
 
-/** Applies the difference between the saved checklist and the edited draft through the per-item API. */
 export async function saveChecklistChanges(
   taskId: number,
   original: ChecklistItem[],
@@ -40,8 +38,6 @@ export async function saveChecklistChanges(
     finalOrder.push(item.id)
   }
 
-  // The server keeps surviving items in their old order and appends new ones,
-  // so only call reorder when the draft order actually differs from that.
   const keptInOriginalOrder = original.filter((i) => draftIds.has(i.id)).map((i) => i.id)
   const newlyCreated = finalOrder.filter((id) => !originalById.has(id))
   const serverOrder = [...keptInOriginalOrder, ...newlyCreated]

@@ -1,8 +1,3 @@
-"""Single entrypoint: `python run.py` starts Flowdesk on http://127.0.0.1:8000.
-
-Binds to 127.0.0.1 only (never 0.0.0.0) — this app is local-only by design.
-"""
-
 import threading
 import webbrowser
 

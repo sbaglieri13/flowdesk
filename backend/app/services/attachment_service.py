@@ -1,7 +1,3 @@
-"""Task file attachments: bytes live on disk under ATTACHMENTS_DIR, referenced
-by a DB row keyed on a random ``stored_name`` (never the user-supplied one, to
-dodge collisions and path traversal)."""
-
 import uuid
 from pathlib import Path
 
@@ -11,7 +7,7 @@ from sqlalchemy.orm import Session
 from backend.app import config
 from backend.app.models import Attachment
 
-MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024  # 25 MB — generous for a local single-user board
+MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024
 
 
 def _stored_name(original_filename: str) -> str:

@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, ChevronUp, Eye, EyeOff, Lock, Plus, Settings2, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Circle, Eye, EyeOff, Lock, Plus, Settings2, X } from 'lucide-react'
 import { useState } from 'react'
 import { columnsApi } from '../../api/columns'
 import { useAsyncAction } from '../../hooks/useAsyncAction'
@@ -28,6 +28,11 @@ export function ColumnManager({ onClose }: ColumnManagerProps) {
 
   const handleToggleHidden = (column: BoardColumn) =>
     runOrReportError(() => columnsApi.update(column.id, { is_hidden: !column.is_hidden }).then(refreshColumns))
+
+  const handleToggleDoneState = (column: BoardColumn) =>
+    runOrReportError(() =>
+      columnsApi.update(column.id, { is_done_state: !column.is_done_state }).then(refreshColumns),
+    )
 
   const handleMove = (index: number, direction: -1 | 1) =>
     runOrReportError(async () => {
@@ -71,7 +76,8 @@ export function ColumnManager({ onClose }: ColumnManagerProps) {
           <span>
             Reorder, rename, or re-emoji any column.
             <Lock className="mx-1 inline h-3 w-3 align-baseline" strokeWidth={2} />
-            Default columns can be hidden from the board but not renamed or deleted.
+            Default columns can be hidden from the board but not renamed or deleted. Mark a column as
+            "counts as done" to have tasks moved into it count toward the closed-tasks statistics.
           </span>
         </p>
         {error && (
@@ -127,6 +133,25 @@ export function ColumnManager({ onClose }: ColumnManagerProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  onClick={() => handleToggleDoneState(column)}
+                  aria-label={
+                    column.is_done_state
+                      ? `Stop counting ${column.name} as done`
+                      : `Count ${column.name} as done`
+                  }
+                  title={column.is_done_state ? 'Counts as done — click to unmark' : 'Mark as "counts as done"'}
+                  className={column.is_done_state ? 'text-emerald-500 hover:text-emerald-600' : ''}
+                >
+                  {column.is_done_state ? (
+                    <CheckCircle2 className="h-4 w-4" strokeWidth={2} />
+                  ) : (
+                    <Circle className="h-4 w-4" strokeWidth={2} />
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleToggleHidden(column)}
                   aria-label={column.is_hidden ? `Show ${column.name} on the board` : `Hide ${column.name} from the board`}
                   title={column.is_hidden ? 'Hidden from board — click to show' : 'Visible on board — click to hide'}
@@ -135,7 +160,10 @@ export function ColumnManager({ onClose }: ColumnManagerProps) {
                 </Button>
 
                 {column.is_default ? (
-                  <span className="flex shrink-0 items-center p-1.5 text-slate-300 dark:text-slate-600" title="Default column">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-300 dark:text-slate-600"
+                    title="Default column"
+                  >
                     <Lock className="h-3.5 w-3.5" strokeWidth={2} />
                   </span>
                 ) : (

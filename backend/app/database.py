@@ -1,11 +1,3 @@
-"""SQLAlchemy engine/session setup.
-
-The module-level ``engine``/``SessionLocal`` point at the real on-disk
-database (``config.DB_PATH``). Tests override the ``get_db`` FastAPI
-dependency with a session bound to a temporary database instead, so the
-real data file is never touched by the test suite.
-"""
-
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, inspect, text
@@ -31,13 +23,6 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def _default_sql_literal(column) -> str | None:
-    """SQL literal for a column's scalar default, if it has one.
-
-    Used so ``ADD COLUMN`` backfills existing rows instead of leaving them
-    ``NULL`` — important for non-nullable model fields like the ``bool``
-    flags on columns/priorities, which would otherwise fail response
-    validation for rows that existed before the field was added.
-    """
     default = column.default
     if default is None or default.is_callable or default.is_sequence:
         return None
@@ -52,14 +37,6 @@ def _default_sql_literal(column) -> str | None:
 
 
 def _add_missing_columns(bind) -> None:
-    """Additively patch existing tables so their columns match the models.
-
-    Deliberately simple in place of Alembic (see README design notes): this
-    project has one user, one machine, and no deployment pipeline, so a
-    diff-and-ALTER-TABLE pass covers the migration shapes we need. Split
-    from ``_drop_stale_columns`` so callers can seed/backfill data into a
-    freshly-added column before the legacy column it replaced is dropped.
-    """
     inspector = inspect(bind)
     with bind.begin() as conn:
         for table in Base.metadata.sorted_tables:
@@ -78,7 +55,6 @@ def _add_missing_columns(bind) -> None:
 
 
 def _drop_stale_columns(bind) -> None:
-    """Drop columns no longer declared on any model (SQLite 3.35+)."""
     inspector = inspect(bind)
     with bind.begin() as conn:
         for table in Base.metadata.sorted_tables:
@@ -91,14 +67,7 @@ def _drop_stale_columns(bind) -> None:
 
 
 def _backfill_default_columns(bind) -> None:
-    """Promote pre-existing seed columns to protected defaults.
-
-    Matches on the original seed names; a column the user has since renamed
-    away from a default name is treated as an ordinary (fully editable) one
-    going forward — this only affects installs from before ``is_default``
-    existed.
-    """
-    from backend.app.seed import DEFAULT_COLUMN_EMOJI  # local import avoids a database<->seed import cycle
+    from backend.app.seed import DEFAULT_COLUMN_EMOJI
 
     inspector = inspect(bind)
     if not inspector.has_table("columns"):
@@ -106,9 +75,6 @@ def _backfill_default_columns(bind) -> None:
     if "is_default" not in {c["name"] for c in inspector.get_columns("columns")}:
         return
     with bind.begin() as conn:
-        # Repair rows left over from a version of this migration that added
-        # is_default/is_hidden without a DEFAULT clause, leaving them NULL
-        # instead of false (NULL fails the API's strict bool validation).
         conn.execute(text("UPDATE columns SET is_default = 0 WHERE is_default IS NULL"))
         conn.execute(text("UPDATE columns SET is_hidden = 0 WHERE is_hidden IS NULL"))
         for name, emoji in DEFAULT_COLUMN_EMOJI.items():
@@ -118,16 +84,87 @@ def _backfill_default_columns(bind) -> None:
             )
 
 
-def _ensure_default_columns(bind) -> None:
-    """Insert any default columns added in a later release (e.g. "Analysis")
-    that are missing from an existing install's columns table.
+def _mark_default_done_column(bind) -> None:
+    from backend.app.seed import DEFAULT_DONE_COLUMNS
 
-    Fresh installs get everything through ``seed_if_empty`` instead — this
-    only fires once the table already has rows. New defaults are appended
-    after the current max position rather than at their "natural" spot, so
-    this never reshuffles a column order the user has already customized.
-    """
-    from backend.app.seed import DEFAULT_COLUMN_EMOJI  # local import avoids a database<->seed import cycle
+    inspector = inspect(bind)
+    if not inspector.has_table("columns"):
+        return
+    if "is_done_state" not in {c["name"] for c in inspector.get_columns("columns")}:
+        return
+    with bind.begin() as conn:
+        conn.execute(text("UPDATE columns SET is_done_state = 0 WHERE is_done_state IS NULL"))
+        for name in DEFAULT_DONE_COLUMNS:
+            conn.execute(
+                text("UPDATE columns SET is_done_state = 1 WHERE name = :name AND is_default = 1"),
+                {"name": name},
+            )
+
+
+def _migrate_reporter_text_to_table(bind) -> None:
+    inspector = inspect(bind)
+    if not inspector.has_table("tasks") or not inspector.has_table("reporters"):
+        return
+    task_columns = {c["name"] for c in inspector.get_columns("tasks")}
+    if "reporter" not in task_columns or "reporter_id" not in task_columns:
+        return
+    with bind.begin() as conn:
+        rows = conn.execute(
+            text("SELECT DISTINCT reporter FROM tasks WHERE reporter IS NOT NULL AND trim(reporter) != ''")
+        ).fetchall()
+        for row in rows:
+            name = row.reporter.strip()
+            existing = conn.execute(
+                text("SELECT id FROM reporters WHERE name = :name"), {"name": name}
+            ).first()
+            reporter_id = existing.id if existing else None
+            if reporter_id is None:
+                conn.execute(text("INSERT INTO reporters (name) VALUES (:name)"), {"name": name})
+                reporter_id = conn.execute(
+                    text("SELECT id FROM reporters WHERE name = :name"), {"name": name}
+                ).first().id
+            conn.execute(
+                text("UPDATE tasks SET reporter_id = :rid WHERE reporter = :name"),
+                {"rid": reporter_id, "name": row.reporter},
+            )
+
+
+def _remove_retired_task_types(bind) -> None:
+    from backend.app.seed import RETIRED_DEFAULT_TASK_TYPE_KEYS
+
+    inspector = inspect(bind)
+    if not inspector.has_table("task_types"):
+        return
+    with bind.begin() as conn:
+        for key in RETIRED_DEFAULT_TASK_TYPE_KEYS:
+            row = conn.execute(text("SELECT id FROM task_types WHERE key = :key"), {"key": key}).first()
+            if row is None:
+                continue
+            if inspector.has_table("tasks"):
+                conn.execute(
+                    text("UPDATE tasks SET type_id = NULL WHERE type_id = :tid"), {"tid": row.id}
+                )
+            conn.execute(text("DELETE FROM task_types WHERE id = :tid"), {"tid": row.id})
+
+
+def _backfill_task_closed_at(bind) -> None:
+    inspector = inspect(bind)
+    if not inspector.has_table("tasks") or not inspector.has_table("columns"):
+        return
+    if "closed_at" not in {c["name"] for c in inspector.get_columns("tasks")}:
+        return
+    with bind.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE tasks SET closed_at = updated_at "
+                "WHERE closed_at IS NULL AND column_id IN "
+                "(SELECT id FROM columns WHERE is_done_state = 1)"
+            )
+        )
+
+
+def _ensure_default_columns(bind) -> None:
+    from backend.app.seed import DEFAULT_COLUMN_EMOJI
 
     inspector = inspect(bind)
     if not inspector.has_table("columns"):
@@ -153,12 +190,6 @@ def _ensure_default_columns(bind) -> None:
 
 
 def _backfill_task_priorities(bind) -> None:
-    """One-time backfill for the legacy ``tasks.priority`` enum column.
-
-    Must run after priorities have been seeded (so ``priorities.key`` rows
-    exist to match against) and before ``_drop_stale_columns`` removes the
-    legacy column it reads from.
-    """
     inspector = inspect(bind)
     if not inspector.has_table("tasks"):
         return
@@ -181,23 +212,24 @@ def _backfill_task_priorities(bind) -> None:
 
 
 def prepare_schema(bind=None) -> None:
-    """Create tables and add new columns. Call before seeding default data."""
     target = bind or engine
     Base.metadata.create_all(bind=target)
     _add_missing_columns(target)
 
 
 def finalize_schema(bind=None) -> None:
-    """Backfill data out of legacy columns, then drop them. Call after seeding."""
     target = bind or engine
     _backfill_default_columns(target)
+    _mark_default_done_column(target)
     _ensure_default_columns(target)
     _backfill_task_priorities(target)
+    _remove_retired_task_types(target)
+    _migrate_reporter_text_to_table(target)
+    _backfill_task_closed_at(target)
     _drop_stale_columns(target)
 
 
 def init_db(bind=None) -> None:
-    """Full schema sync in one call, for callers with no seed step in between."""
     prepare_schema(bind)
     finalize_schema(bind)
 

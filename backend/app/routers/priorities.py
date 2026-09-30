@@ -1,5 +1,3 @@
-"""Priority level CRUD. Default priorities can be hidden but never renamed or deleted."""
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -49,7 +47,6 @@ def update_priority(priority_id: int, payload: PriorityUpdate, db: Session = Dep
 
     data = payload.model_dump(exclude_unset=True)
     if priority.is_default:
-        # Default priorities are permanent fixtures — only visibility can change.
         data = {k: v for k, v in data.items() if k == "is_hidden"}
     if "name" in data:
         name_conflict = (
@@ -77,8 +74,6 @@ def delete_priority(priority_id: int, db: Session = Depends(get_db)):
     if priority.is_default:
         raise HTTPException(409, "Default priorities can't be deleted — hide them instead")
 
-    # Tasks left behind fall back to "Medium" rather than blocking the
-    # delete — mirrors how removing a tag just detaches it.
     try:
         fallback_id = default_priority_id(db)
     except ValueError as exc:

@@ -1,7 +1,8 @@
-import { AlertTriangle, CheckSquare, Link2, Paperclip, Rocket, Sparkles } from 'lucide-react'
+import { AlertTriangle, CheckSquare, Link2, Paperclip, Rocket, Sparkles, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
 import { attachmentsApi } from '../../api/attachments'
+import { reportersApi } from '../../api/reporters'
 import { tagsApi } from '../../api/tags'
 import { tasksApi } from '../../api/tasks'
 import { useBoardData } from '../../state/BoardContext'
@@ -11,8 +12,9 @@ import { Button } from '../ui/button'
 import { DescriptionNotesFields } from './DescriptionNotesFields'
 import { DraftAttachmentsEditor } from './DraftAttachmentsEditor'
 import { DraftChecklistEditor } from './DraftChecklistEditor'
-import { PriorityDeadlineFields } from './PriorityDeadlineFields'
+import { ReporterPicker } from './ReporterPicker'
 import { TaskFormSection } from './TaskFormSection'
+import { TaskMetaFields } from './TaskMetaFields'
 import { TaskTagsField } from './TaskTagsField'
 
 interface TaskCreateModalProps {
@@ -24,15 +26,18 @@ interface TaskCreateModalProps {
 const GENERIC_CREATE_ERROR = 'Could not create the task. Please try again.'
 
 export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModalProps) {
-  const { tags, priorities, refreshTags } = useBoardData()
+  const { tags, priorities, taskTypes, reporters, refreshTags, refreshReporters } = useBoardData()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [notes, setNotes] = useState('')
   const [activeSection, setActiveSection] = useState<'description' | 'notes'>('description')
   const defaultPriority = priorities.find((p) => p.is_default && p.name === 'Medium') ?? priorities[0]
   const [priorityId, setPriorityId] = useState<number | undefined>(defaultPriority?.id)
+  const [typeId, setTypeId] = useState<number | null>(null)
   const [deadline, setDeadline] = useState<string | null>(null)
   const [externalReference, setExternalReference] = useState('')
+  const [reporterId, setReporterId] = useState<number | null>(null)
+  const [docUrl, setDocUrl] = useState('')
   const [tagIds, setTagIds] = useState<number[]>([])
   const [checklist, setChecklist] = useState<string[]>([])
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
@@ -43,6 +48,12 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
     const tag = await tagsApi.create(name, color, emoji || undefined)
     await refreshTags()
     setTagIds((prev) => [...prev, tag.id])
+  }
+
+  const handleCreateReporter = async (name: string) => {
+    const created = await reportersApi.create(name)
+    await refreshReporters()
+    return created
   }
 
   const handleSubmit = async () => {
@@ -56,22 +67,21 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
         notes: notes || null,
         column_id: columnId,
         priority_id: priorityId,
+        type_id: typeId,
         deadline,
         external_reference: externalReference || null,
+        reporter_id: reporterId,
+        doc_url: docUrl || null,
         tag_ids: tagIds,
         checklist_items: checklist,
       })
 
-      // Files can only be uploaded once the task (and its id) exists, so this
-      // runs as a follow-up step rather than part of the create payload.
       let finalTask = created
       for (const file of pendingFiles) {
         try {
           const attachment = await attachmentsApi.upload(created.id, file)
           finalTask = { ...finalTask, attachments: [...finalTask.attachments, attachment] }
         } catch {
-          // The task itself was created successfully — a single failed
-          // attachment (e.g. too large) shouldn't block or roll that back.
         }
       }
 
@@ -123,10 +133,13 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
         </div>
 
         <TaskFormSection>
-          <PriorityDeadlineFields
+          <TaskMetaFields
             priorityId={priorityId}
             onPriorityChange={setPriorityId}
             priorities={priorities}
+            typeId={typeId}
+            onTypeChange={setTypeId}
+            taskTypes={taskTypes}
             deadline={deadline}
             onDeadlineChange={setDeadline}
           />
@@ -164,6 +177,33 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
             <Paperclip className="h-3.5 w-3.5" strokeWidth={2} /> Attachments
           </label>
           <DraftAttachmentsEditor files={pendingFiles} onChange={setPendingFiles} />
+        </TaskFormSection>
+
+        <TaskFormSection>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <UserRound className="h-3.5 w-3.5" strokeWidth={2} /> Reporter
+              </label>
+              <ReporterPicker
+                reporters={reporters}
+                selectedId={reporterId}
+                onChange={setReporterId}
+                onCreateReporter={handleCreateReporter}
+              />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <Link2 className="h-3.5 w-3.5" strokeWidth={2} /> Documentation link
+              </label>
+              <input
+                value={docUrl}
+                onChange={(e) => setDocUrl(e.target.value)}
+                placeholder="Confluence, Notion, wiki page…"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-indigo-500/20"
+              />
+            </div>
+          </div>
         </TaskFormSection>
 
         <TaskFormSection>

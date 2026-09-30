@@ -1,5 +1,3 @@
-"""Column (workflow status) CRUD and reordering."""
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -57,8 +55,7 @@ def update_column(column_id: int, payload: BoardColumnUpdate, db: Session = Depe
 
     data = payload.model_dump(exclude_unset=True)
     if column.is_default:
-        # Default columns are permanent fixtures — only visibility can change.
-        data = {k: v for k, v in data.items() if k == "is_hidden"}
+        data = {k: v for k, v in data.items() if k in ("is_hidden", "is_done_state")}
 
     for field, value in data.items():
         setattr(column, field, value)
@@ -75,8 +72,6 @@ def delete_column(column_id: int, db: Session = Depends(get_db)):
     if column.is_default:
         raise HTTPException(409, "Default columns can't be deleted — hide them instead")
 
-    # Tasks left behind move to the permanent "New" column rather than
-    # blocking the delete — mirrors how removing a tag just detaches it.
     orphaned = db.query(Task).filter(Task.column_id == column_id).all()
     if orphaned:
         try:
@@ -87,9 +82,6 @@ def delete_column(column_id: int, db: Session = Depends(get_db)):
         for offset, task in enumerate(orphaned):
             task.column_id = fallback_id
             task.position = base_position + offset * POSITION_GAP
-        # Flush the reassignment before deleting the column — otherwise both
-        # changes land in the same unit-of-work pass and the relationship's
-        # cascade logic nulls the just-reassigned column_id back out.
         db.flush()
 
     db.delete(column)

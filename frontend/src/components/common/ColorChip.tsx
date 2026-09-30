@@ -5,7 +5,6 @@ interface ColorChipProps {
   placeholder?: string
 }
 
-/** Live preview of a tag/priority pill, matching how it renders on task cards. */
 export function ColorChip({ name, color, emoji, placeholder = 'Preview' }: ColorChipProps) {
   return (
     <span

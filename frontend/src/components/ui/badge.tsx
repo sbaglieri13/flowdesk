@@ -2,7 +2,6 @@ import type { CSSProperties, HTMLAttributes } from 'react'
 import { cn } from '../../lib/utils'
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  /** Hex color: renders a soft tinted pill (text = color, background = color at low opacity). */
   color?: string
 }
 

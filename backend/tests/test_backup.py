@@ -1,8 +1,3 @@
-"""backup_service reads config.DB_PATH/BACKUPS_DIR directly (not via get_db),
-so every test here monkeypatches those plus a no-op engine to avoid ever
-touching the real data/flowdesk.db file or its connection pool.
-"""
-
 import pytest
 
 from backend.app import config
@@ -69,17 +64,11 @@ def test_restore_rejects_missing_file():
 
 @pytest.mark.usefixtures("isolated_backup_env")
 def test_restore_neutralizes_directory_components_in_filename():
-    # Path(...).name strips any directory part, so a traversal attempt just
-    # gets treated as a (nonexistent) plain filename inside BACKUPS_DIR —
-    # it can never reach anywhere outside it.
     with pytest.raises(ValueError, match="not found"):
         backup_service.restore_backup("../../etc/passwd")
 
 
 @pytest.mark.usefixtures("isolated_backup_env")
 def test_backup_file_path_rejects_filename_resolving_to_the_backups_dir_itself():
-    # "..", ".", and "" all resolve to BACKUPS_DIR (or above it) rather than
-    # a file inside it — this is the actual case _safe_backup_path's parent
-    # check guards against.
     with pytest.raises(ValueError, match="Invalid backup filename"):
         backup_service.backup_file_path("..")

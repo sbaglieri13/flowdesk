@@ -7,14 +7,12 @@ import { DraftAttachmentsEditor } from './DraftAttachmentsEditor'
 
 interface AttachmentsPanelProps {
   taskId: number
-  /** Attachments already saved on the task and not marked for removal. */
   items: Attachment[]
   onRemoveExisting: (attachmentId: number) => void
   pendingFiles: File[]
   onPendingFilesChange: (files: File[]) => void
 }
 
-/** Stages attachment changes (removals and new files); they are applied when the task is saved. */
 export function AttachmentsPanel({
   taskId,
   items,
@@ -22,9 +20,6 @@ export function AttachmentsPanel({
   pendingFiles,
   onPendingFilesChange,
 }: AttachmentsPanelProps) {
-  // Defensive: a task fetched from a server that hasn't picked up this field
-  // yet (e.g. not restarted since this feature shipped) would otherwise send
-  // `attachments: undefined` and crash the whole modal on `.map`.
   const safeItems = items ?? []
 
   return (

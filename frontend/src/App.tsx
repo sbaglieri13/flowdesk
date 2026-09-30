@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell'
 import type { View } from './components/layout/NavBar'
 import { BoardPage } from './pages/BoardPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { StatsPage } from './pages/StatsPage'
 import { BoardProvider, useBoardData } from './state/BoardContext'
 import { ThemeProvider } from './state/ThemeContext'
 
@@ -31,6 +32,7 @@ function AppContent() {
   return (
     <AppShell view={view} onViewChange={setView}>
       {view === 'board' && <BoardPage />}
+      {view === 'stats' && <StatsPage onBack={() => setView('board')} />}
       {view === 'settings' && <SettingsPage onBack={() => setView('board')} />}
     </AppShell>
   )

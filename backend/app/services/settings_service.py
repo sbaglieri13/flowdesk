@@ -1,5 +1,3 @@
-"""Reading/writing key-value settings, and generating task display codes."""
-
 from sqlalchemy.orm import Session
 
 from backend.app.models import Setting

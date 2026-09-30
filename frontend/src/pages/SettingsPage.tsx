@@ -64,7 +64,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     })
 
   return (
-    <div className="nice-scrollbar h-full overflow-y-auto bg-gradient-to-b from-slate-50 to-slate-100/50 dark:from-slate-950 dark:to-slate-900">
+    <div className="nice-scrollbar h-full overflow-y-auto bg-gradient-to-br from-indigo-100/70 via-slate-100 to-slate-200/70 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20">
       <div className="mx-auto max-w-2xl space-y-6 p-6">
         <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
           <ArrowLeft className="h-4 w-4" strokeWidth={2} /> Back to board

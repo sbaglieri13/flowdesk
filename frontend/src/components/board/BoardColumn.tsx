@@ -25,7 +25,7 @@ export function BoardColumn({ column, tasks, onTaskClick, onSorted, onAddTask }:
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className={`flex w-72 shrink-0 flex-col self-start rounded-2xl border-t-4 bg-slate-100/70 shadow-soft dark:bg-slate-900/50 ${columnAccentClass(column.position)}`}
+      className={`flex w-72 shrink-0 flex-col self-start rounded-2xl border-t-4 bg-white/70 shadow-soft dark:bg-slate-900/50 ${columnAccentClass(column.position)}`}
     >
       <div className="flex items-center justify-between px-3 pt-3">
         <div className="flex items-center gap-2">
@@ -40,9 +40,9 @@ export function BoardColumn({ column, tasks, onTaskClick, onSorted, onAddTask }:
 
       <div
         ref={setNodeRef}
-        className={`nice-scrollbar max-h-[calc(100vh-220px)] min-h-40 space-y-2 overflow-y-auto rounded-lg p-3 transition-colors duration-200 ${
-          isOver ? 'bg-indigo-50/70 dark:bg-indigo-500/10' : ''
-        }`}
+        className={`nice-scrollbar max-h-[calc(100vh-220px)] space-y-2 overflow-y-auto rounded-lg p-3 transition-colors duration-200 ${
+          tasks.length === 0 ? 'min-h-16' : 'min-h-40'
+        } ${isOver ? 'bg-indigo-50/70 dark:bg-indigo-500/10' : ''}`}
       >
         <SortableContext items={tasks.map((t) => taskDndId(t.id))} strategy={verticalListSortingStrategy}>
           <AnimatePresence initial={false}>

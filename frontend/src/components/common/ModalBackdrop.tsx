@@ -1,4 +1,4 @@
-import { Maximize2, Minimize2 } from 'lucide-react'
+import { Maximize2, Minimize2, X } from 'lucide-react'
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useFloatingPanel } from '../../hooks/useFloatingPanel'
@@ -8,8 +8,6 @@ interface ModalBackdropProps {
   onClose: () => void
   children: ReactNode
   title?: string
-  /** Set while a nested dialog (e.g. a delete confirmation) is open, so Escape
-   * dismisses that first instead of also closing this modal underneath it. */
   disableEscape?: boolean
 }
 
@@ -58,6 +56,9 @@ export function ModalBackdrop({ onClose, children, title, disableEscape = false 
             title={maximized ? 'Restore' : 'Maximize'}
           >
             {maximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7" aria-label="Close">
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
         <div className="nice-scrollbar flex-1 overflow-y-auto p-5">{children}</div>

@@ -1,10 +1,8 @@
-"""SQLAlchemy ORM models for Flowdesk."""
-
 from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Table, Text, func
+from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Table, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.database import Base
@@ -18,12 +16,6 @@ task_tags = Table(
 
 
 class BoardColumn(Base):
-    """A workflow column/status on the (single) board.
-
-    The columns seeded on first run (``is_default``) are permanent fixtures:
-    they can be hidden from the board but never renamed or deleted, so the
-    app always has a coherent default workflow to fall back on.
-    """
 
     __tablename__ = "columns"
 
@@ -33,6 +25,7 @@ class BoardColumn(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_done_state: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
@@ -53,14 +46,18 @@ class Tag(Base):
     tasks: Mapped[list[Task]] = relationship(secondary=task_tags, back_populates="tags")
 
 
-class Priority(Base):
-    """A priority level tasks can be assigned, editable like columns/tags.
+class Reporter(Base):
 
-    ``key`` is a stable machine identifier only ever set on the four
-    seeded defaults (used to migrate legacy data and to recognize them
-    regardless of renaming); user-created priorities leave it null.
-    Defaults follow the same "hide, don't delete" rule as default columns.
-    """
+    __tablename__ = "reporters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    tasks: Mapped[list[Task]] = relationship(back_populates="reporter")
+
+
+class Priority(Base):
 
     __tablename__ = "priorities"
 
@@ -77,6 +74,23 @@ class Priority(Base):
     tasks: Mapped[list[Task]] = relationship(back_populates="priority")
 
 
+class TaskType(Base):
+
+    __tablename__ = "task_types"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    emoji: Mapped[str] = mapped_column(String(8), nullable=False, default="🏷️")
+    color: Mapped[str] = mapped_column(String(20), nullable=False, default="#64748b")
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    tasks: Mapped[list[Task]] = relationship(back_populates="type")
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -90,16 +104,22 @@ class Task(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     priority_id: Mapped[int] = mapped_column(ForeignKey("priorities.id"), nullable=False)
+    type_id: Mapped[int | None] = mapped_column(ForeignKey("task_types.id"), nullable=True)
     deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
     external_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    reporter_id: Mapped[int | None] = mapped_column(ForeignKey("reporters.id"), nullable=True)
+    doc_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     column: Mapped[BoardColumn] = relationship(back_populates="tasks")
     priority: Mapped[Priority] = relationship(back_populates="tasks")
+    type: Mapped[TaskType | None] = relationship(back_populates="tasks")
+    reporter: Mapped[Reporter | None] = relationship(back_populates="tasks")
     tags: Mapped[list[Tag]] = relationship(secondary=task_tags, back_populates="tasks")
     checklist_items: Mapped[list[ChecklistItem]] = relationship(
         back_populates="task",
@@ -110,6 +130,11 @@ class Task(Base):
         back_populates="task",
         cascade="all, delete-orphan",
         order_by="Attachment.created_at",
+    )
+    time_entries: Mapped[list[TimeEntry]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TimeEntry.logged_date.desc()",
     )
 
 
@@ -127,9 +152,6 @@ class ChecklistItem(Base):
 
 
 class Attachment(Base):
-    """A file uploaded to a task. Stored on disk under ``config.ATTACHMENTS_DIR``
-    as ``stored_name`` (a random name, to dodge collisions/path-traversal);
-    ``filename`` keeps the original name for display and download."""
 
     __tablename__ = "attachments"
 
@@ -142,6 +164,20 @@ class Attachment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     task: Mapped[Task] = relationship(back_populates="attachments")
+
+
+class TimeEntry(Base):
+
+    __tablename__ = "time_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    hours: Mapped[float] = mapped_column(Float, nullable=False)
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    logged_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    task: Mapped[Task] = relationship(back_populates="time_entries")
 
 
 class Setting(Base):

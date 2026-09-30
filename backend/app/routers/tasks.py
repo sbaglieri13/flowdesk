@@ -1,5 +1,3 @@
-"""Task CRUD, movement, reordering and auto-sort."""
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -36,11 +34,19 @@ def list_tasks(
     column_id: int | None = None,
     priority_id: list[int] = Query(default=[]),
     tag_id: list[int] = Query(default=[]),
+    type_id: list[int] = Query(default=[]),
+    reporter_id: list[int] = Query(default=[]),
     search: str | None = None,
     db: Session = Depends(get_db),
 ):
     tasks = task_service.list_tasks(
-        db, column_id=column_id, priority_ids=priority_id, tag_ids=tag_id, search=search
+        db,
+        column_id=column_id,
+        priority_ids=priority_id,
+        tag_ids=tag_id,
+        type_ids=type_id,
+        reporter_ids=reporter_id,
+        search=search,
     )
     return [_to_read(db, t) for t in tasks]
 

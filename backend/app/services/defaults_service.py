@@ -1,5 +1,3 @@
-"""Resolves the permanent fallback column/priority orphaned tasks land on."""
-
 from sqlalchemy.orm import Session
 
 from backend.app.models import BoardColumn, Priority

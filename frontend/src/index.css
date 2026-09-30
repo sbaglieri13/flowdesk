@@ -12,11 +12,30 @@
 @theme {
   --font-sans: 'Inter', 'Segoe UI', sans-serif;
 
+  /* Brand accent, reassigned from Tailwind's stock blue-leaning indigo to a
+     warmer plum/violet in the spirit of asana.com's palette. Every existing
+     `indigo-*` utility across the app (buttons, focus rings, badges, the
+     nav's active state, ...) picks this up automatically — this is the one
+     place the brand hue is defined. Deliberately not the same hue as the
+     `violet` used for column accents (utils/columnStyle.ts), so that rotation
+     still reads as a distinct color. */
+  --color-indigo-50: #faf5ff;
+  --color-indigo-100: #f3e8ff;
+  --color-indigo-200: #e9d5ff;
+  --color-indigo-300: #d8b4fe;
+  --color-indigo-400: #c084fc;
+  --color-indigo-500: #a855f7;
+  --color-indigo-600: #9333ea;
+  --color-indigo-700: #7e22ce;
+  --color-indigo-800: #6b21a8;
+  --color-indigo-900: #581c87;
+  --color-indigo-950: #3b0764;
+
   /* Soft, layered "premium" shadows — used instead of Tailwind's default
      single-layer shadows for a gentler, more Apple/Linear-like depth. */
   --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -8px rgba(15, 23, 42, 0.10);
   --shadow-soft-lg: 0 2px 4px rgba(15, 23, 42, 0.04), 0 16px 40px -12px rgba(15, 23, 42, 0.16);
-  --shadow-glow: 0 0 0 1px rgba(99, 102, 241, 0.08), 0 8px 30px -6px rgba(99, 102, 241, 0.35);
+  --shadow-glow: 0 0 0 1px rgba(168, 85, 247, 0.08), 0 8px 30px -6px rgba(168, 85, 247, 0.35);
 }
 
 html,
@@ -26,7 +45,7 @@ body,
 }
 
 body {
-  @apply bg-slate-50 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-slate-100 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100;
 }
 
 /* Browsers don't give <button> a pointer cursor by default (unlike <a>),
@@ -43,14 +62,15 @@ button:disabled {
   letter-spacing: -0.02em;
 }
 
-/* Soft indigo -> violet -> fuchsia gradient for brand moments (logo mark,
-   loading state, primary CTAs, empty states) — used sparingly, not as a
-   general-purpose background. */
+/* Plum -> pink -> gold gradient for brand moments (logo mark, loading state,
+   primary CTAs, empty states) — used sparingly, not as a general-purpose
+   background. Three-color and warm at the end, rather than staying in one
+   blue-purple family, to echo the multicolor brand marks on asana.com. */
 .brand-gradient {
-  background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #d946ef 100%);
+  background-image: linear-gradient(135deg, #9333ea 0%, #d946ef 55%, #f59e0b 100%);
 }
 .brand-gradient-text {
-  background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #d946ef 100%);
+  background-image: linear-gradient(135deg, #9333ea 0%, #d946ef 55%, #f59e0b 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -58,12 +78,14 @@ button:disabled {
 
 /* Light glassmorphism — reserved for chrome (nav bar, modal headers,
    dropdown panels), never for task cards themselves: dense working data
-   needs to stay crisp and legible, not translucent. */
+   needs to stay crisp and legible, not translucent. The border carries real
+   contrast in light mode (an all-white border on an already-pale page was
+   invisible, leaving the nav bar with no visible edge at all). */
 .glass {
-  background-color: rgb(255 255 255 / 0.72);
+  background-color: rgb(255 255 255 / 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-color: rgb(255 255 255 / 0.4);
+  border-color: rgb(15 23 42 / 0.08);
 }
 .dark .glass {
   background-color: rgb(15 23 42 / 0.6);
@@ -73,7 +95,7 @@ button:disabled {
 /* Nicer, theme-matched scrollbars for board/modal overflow areas */
 .nice-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgb(165 180 252) transparent;
+  scrollbar-color: rgb(216 180 254) transparent;
 }
 .dark .nice-scrollbar {
   scrollbar-color: rgb(71 85 105) transparent;
@@ -86,7 +108,7 @@ button:disabled {
   background: transparent;
 }
 .nice-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgb(165 180 252);
+  background-color: rgb(216 180 254);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -95,5 +117,5 @@ button:disabled {
   background-color: rgb(71 85 105);
 }
 .nice-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(129 140 248);
+  background-color: rgb(192 132 252);
 }
