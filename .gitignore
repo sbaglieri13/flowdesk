@@ -1,29 +1,51 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
 .venv/
 venv/
 env/
-*.egg-info/
+
+# Python tooling
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
-# Data (runtime, never committed)
+# Runtime data (database, backups, attachments)
 data/
 
 # Frontend
-frontend/node_modules/
+node_modules/
 frontend/dist/
+frontend/.vite/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+*.tsbuildinfo
 backend/app/static/
 
-# Editor/OS
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors and OS
 .vscode/
 .idea/
+*.swp
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Env files
-.env
-.env.local
+bash.exe.stackdump

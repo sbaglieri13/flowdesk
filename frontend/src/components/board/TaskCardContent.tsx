@@ -1,8 +1,11 @@
-import { CheckCircle2, Clock, ListChecks } from 'lucide-react'
-import { useBoardData } from '../../state/BoardContext'
+import { CheckCircle, Clock, ListChecks } from '../../icons/phosphor'
+import { useBoardData } from '../../state/useBoardData'
 import type { Task } from '../../types'
 import { DEADLINE_BADGE_CLASSES, DEADLINE_ICONS, formatDeadline, getDeadlineStatus } from '../../utils/deadline'
 import { Badge } from '../ui/badge'
+import { formatHours } from '../../utils/hours'
+import { EntityIcon } from '../common/EntityIcon'
+import { IconTile } from '../common/IconTile'
 
 export function TaskCardContent({ task }: { task: Task }) {
   const { tags: allTags } = useBoardData()
@@ -31,9 +34,10 @@ export function TaskCardContent({ task }: { task: Task }) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {task.type && <Badge color={task.type.color}>{task.type.emoji}</Badge>}
+          {task.type && <IconTile icon={task.type.icon} color={task.type.color} size="sm" title={task.type.name} />}
           <Badge color={task.priority.color}>
-            {task.priority.emoji} {task.priority.name}
+            <EntityIcon name={task.priority.icon} className="h-3.5 w-3.5" />
+            {task.priority.name}
           </Badge>
         </div>
       </div>
@@ -46,7 +50,7 @@ export function TaskCardContent({ task }: { task: Task }) {
             const liveTag = allTags.find((t) => t.id === tag.id) ?? tag
             return (
               <Badge key={tag.id} color={liveTag.color} className="text-[10px]">
-                {liveTag.emoji ? `${liveTag.emoji} ` : ''}
+                <EntityIcon name={liveTag.icon} className="h-3 w-3" />
                 {liveTag.name}
               </Badge>
             )
@@ -57,24 +61,24 @@ export function TaskCardContent({ task }: { task: Task }) {
       <div className="flex items-center gap-2 text-[11px]">
         {task.deadline && (
           <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${DEADLINE_BADGE_CLASSES[deadlineStatus]}`}>
-            {DeadlineIcon && <DeadlineIcon className="h-3 w-3" strokeWidth={2.5} />}
+            {DeadlineIcon && <DeadlineIcon className="h-3 w-3" />}
             {formatDeadline(task.deadline)}
           </span>
         )}
         {task.checklist_items.length > 0 && (
           <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
             {allDone ? (
-              <CheckCircle2 className="h-3 w-3 text-emerald-500" strokeWidth={2.5} />
+              <CheckCircle className="h-3 w-3 text-emerald-500" />
             ) : (
-              <ListChecks className="h-3 w-3" strokeWidth={2.25} />
+              <ListChecks className="h-3 w-3" />
             )}
             {doneCount}/{task.checklist_items.length}
           </span>
         )}
         {task.total_hours > 0 && (
           <span className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
-            <Clock className="h-3 w-3" strokeWidth={2.25} />
-            {task.total_hours % 1 === 0 ? task.total_hours : task.total_hours.toFixed(2)}h
+            <Clock className="h-3 w-3" />
+            {formatHours(task.total_hours)}
           </span>
         )}
       </div>

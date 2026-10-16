@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowsDownUp, ArrowUp } from '../../icons/phosphor'
+
 import { useEffect, useState } from 'react'
 import { tasksApi } from '../../api/tasks'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
@@ -65,7 +66,7 @@ export function AutoSortMenu({ columnId, onSorted }: AutoSortMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <ArrowUpDown className="h-4 w-4" strokeWidth={2} />
+        <ArrowsDownUp className="h-4 w-4" />
       </button>
       {open && (
         <>
@@ -88,9 +89,9 @@ export function AutoSortMenu({ columnId, onSorted }: AutoSortMenuProps) {
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
                     {option.order === 'asc' ? (
-                      <ArrowUp className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2} />
+                      <ArrowUp className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                     ) : (
-                      <ArrowDown className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2} />
+                      <ArrowDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                     )}
                     {option.label}
                   </button>

@@ -1,7 +1,7 @@
-import { Paperclip, Upload, X } from 'lucide-react'
+import { UploadSimple } from '../../icons/phosphor'
 import { useRef, type ChangeEvent } from 'react'
-import { formatFileSize } from '../../utils/fileSize'
 import { Button } from '../ui/button'
+import { AttachmentRow } from './AttachmentRow'
 
 interface DraftAttachmentsEditorProps {
   files: File[]
@@ -25,25 +25,14 @@ export function DraftAttachmentsEditor({ files, onChange }: DraftAttachmentsEdit
   return (
     <div className="space-y-2">
       {files.length > 0 && (
-        <ul className="space-y-1">
+        <ul className="space-y-1.5">
           {files.map((file, index) => (
-            <li
+            <AttachmentRow
               key={`${file.name}-${index}`}
-              className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-            >
-              <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2} aria-hidden="true" />
-              <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{file.name}</span>
-              <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{formatFileSize(file.size)}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
-                onClick={() => handleRemove(index)}
-                aria-label={`Remove ${file.name}`}
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={2} />
-              </Button>
-            </li>
+              filename={file.name}
+              sizeBytes={file.size}
+              onRemove={() => handleRemove(index)}
+            />
           ))}
         </ul>
       )}
@@ -51,7 +40,7 @@ export function DraftAttachmentsEditor({ files, onChange }: DraftAttachmentsEdit
       <div>
         <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
         <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-          <Upload className="h-4 w-4" strokeWidth={2} /> Attach a file
+          <UploadSimple className="h-4 w-4" /> Attach a file
         </Button>
       </div>
     </div>

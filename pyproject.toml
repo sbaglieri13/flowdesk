@@ -1,5 +1,7 @@
 [tool.pytest.ini_options]
-testpaths = ["backend/tests"]
+pythonpath = ["."]
+testpaths = ["tests/backend"]
+addopts = "--cov=backend.app --cov-report=term-missing:skip-covered --cov-fail-under=90"
 
 [tool.ruff]
 line-length = 110
@@ -12,3 +14,6 @@ ignore = ["B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/backend/conftest.py" = ["E402"]

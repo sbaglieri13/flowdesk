@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integ
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.database import Base
+from backend.app.file_previews import preview_for
 
 task_tags = Table(
     "task_tags",
@@ -16,12 +17,11 @@ task_tags = Table(
 
 
 class BoardColumn(Base):
-
     __tablename__ = "columns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    emoji: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(40), nullable=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -40,14 +40,13 @@ class Tag(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     color: Mapped[str] = mapped_column(String(20), nullable=False)
-    emoji: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    icon: Mapped[str] = mapped_column(String(40), nullable=False, default="tag")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     tasks: Mapped[list[Task]] = relationship(secondary=task_tags, back_populates="tags")
 
 
 class Reporter(Base):
-
     __tablename__ = "reporters"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -58,13 +57,12 @@ class Reporter(Base):
 
 
 class Priority(Base):
-
     __tablename__ = "priorities"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     key: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
-    emoji: Mapped[str] = mapped_column(String(8), nullable=False, default="⚪")
+    icon: Mapped[str] = mapped_column(String(40), nullable=False, default="minus")
     color: Mapped[str] = mapped_column(String(20), nullable=False, default="#64748b")
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -75,13 +73,12 @@ class Priority(Base):
 
 
 class TaskType(Base):
-
     __tablename__ = "task_types"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     key: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
-    emoji: Mapped[str] = mapped_column(String(8), nullable=False, default="🏷️")
+    icon: Mapped[str] = mapped_column(String(40), nullable=False, default="clipboard-text")
     color: Mapped[str] = mapped_column(String(20), nullable=False, default="#64748b")
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -108,7 +105,6 @@ class Task(Base):
     deadline: Mapped[date | None] = mapped_column(Date, nullable=True)
     external_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     reporter_id: Mapped[int | None] = mapped_column(ForeignKey("reporters.id"), nullable=True)
-    doc_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -136,6 +132,26 @@ class Task(Base):
         cascade="all, delete-orphan",
         order_by="TimeEntry.logged_date.desc()",
     )
+    doc_links: Mapped[list[TaskDocLink]] = relationship(
+        back_populates="task",
+        cascade="all, delete-orphan",
+        order_by="TaskDocLink.position",
+    )
+
+    @property
+    def doc_urls(self) -> list[str]:
+        return [link.url for link in self.doc_links]
+
+
+class TaskDocLink(Base):
+    __tablename__ = "task_doc_links"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    task: Mapped[Task] = relationship(back_populates="doc_links")
 
 
 class ChecklistItem(Base):
@@ -152,7 +168,6 @@ class ChecklistItem(Base):
 
 
 class Attachment(Base):
-
     __tablename__ = "attachments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -165,9 +180,13 @@ class Attachment(Base):
 
     task: Mapped[Task] = relationship(back_populates="attachments")
 
+    @property
+    def preview_kind(self) -> str | None:
+        preview = preview_for(self.filename)
+        return preview.kind if preview else None
+
 
 class TimeEntry(Base):
-
     __tablename__ = "time_entries"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

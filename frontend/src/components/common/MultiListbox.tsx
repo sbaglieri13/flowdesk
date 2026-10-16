@@ -1,5 +1,5 @@
-import { Check, ChevronDown } from 'lucide-react'
-import { useState, type ComponentType } from 'react'
+import { CaretDown, Check, type Icon } from '../../icons/phosphor'
+import { useState } from 'react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import type { ListboxOption } from './Listbox'
 
@@ -8,7 +8,7 @@ interface MultiListboxProps<T extends string | number> {
   onChange: (values: T[]) => void
   options: ListboxOption<T>[]
   placeholder: string
-  icon?: ComponentType<{ className?: string; strokeWidth?: number }>
+  icon?: Icon
   className?: string
   id?: string
 }
@@ -22,7 +22,7 @@ function OptionCheckbox({ checked }: { checked: boolean }) {
           : 'border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800'
       }`}
     >
-      {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+      {checked && <Check className="h-3 w-3" />}
     </span>
   )
 }
@@ -72,10 +72,10 @@ export function MultiListbox<T extends string | number>({
         className={`flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-100 py-1.5 pl-3 pr-2.5 text-sm text-slate-700 transition hover:border-indigo-300 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:focus:ring-indigo-500/20 ${className}`}
       >
         <span className="flex min-w-0 items-center gap-1.5 truncate">
-          {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2} />}
+          {Icon && <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
           <span className="truncate">{buttonText}</span>
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" strokeWidth={2} />
+        <CaretDown className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
       </button>
 
       {open && (

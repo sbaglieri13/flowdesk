@@ -1,7 +1,7 @@
 import { timeEntriesApi } from '../api/timeEntries'
 import type { TimeEntry } from '../types'
 
-export function isDraftTimeEntry(entry: TimeEntry): boolean {
+function isDraftTimeEntry(entry: TimeEntry): boolean {
   return entry.id < 0
 }
 

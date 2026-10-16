@@ -1,7 +1,8 @@
-import { Clock, Plus, X } from 'lucide-react'
+import { Clock, Plus, X } from '../../icons/phosphor'
 import { useRef, useState } from 'react'
 import type { TimeEntry } from '../../types'
 import { Button } from '../ui/button'
+import { formatHours } from '../../utils/hours'
 
 interface TimeTrackingPanelProps {
   entries: TimeEntry[]
@@ -64,8 +65,8 @@ export function TimeTrackingPanel({ entries, onEntriesChange }: TimeTrackingPane
     <div className="space-y-2">
       {entries.length > 0 && (
         <div className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-300">
-          <Clock className="h-3.5 w-3.5 text-indigo-500" strokeWidth={2} />
-          {(totalHours % 1 === 0 ? totalHours : totalHours.toFixed(2))}h logged total
+          <Clock className="h-3.5 w-3.5 text-indigo-500" />
+          {formatHours(totalHours)} logged total
         </div>
       )}
 
@@ -107,7 +108,7 @@ export function TimeTrackingPanel({ entries, onEntriesChange }: TimeTrackingPane
                 onClick={() => handleRemove(entry.id)}
                 aria-label="Delete time entry"
               >
-                <X className="h-3.5 w-3.5" strokeWidth={2} />
+                <X className="h-3.5 w-3.5" />
               </Button>
             </li>
           ))}
@@ -149,7 +150,7 @@ export function TimeTrackingPanel({ entries, onEntriesChange }: TimeTrackingPane
           onClick={handleAdd}
           disabled={!newHours || parseFloat(newHours) <= 0}
         >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2} /> Log
+          <Plus className="h-3.5 w-3.5" /> Log
         </Button>
       </div>
     </div>

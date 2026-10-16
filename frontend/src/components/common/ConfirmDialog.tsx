@@ -1,5 +1,5 @@
+import { Warning } from '../../icons/phosphor'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { Button } from '../ui/button'
@@ -52,7 +52,7 @@ export function ConfirmDialog({
           <div className="flex items-start gap-3">
             {destructive && (
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400">
-                <AlertTriangle className="h-4 w-4" strokeWidth={2} />
+                <Warning className="h-4 w-4" />
               </span>
             )}
             <div>

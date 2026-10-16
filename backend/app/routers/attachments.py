@@ -3,11 +3,14 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
+from backend.app.file_previews import preview_for
 from backend.app.models import Attachment, Task
 from backend.app.schemas import AttachmentRead
 from backend.app.services import attachment_service
 
 router = APIRouter(prefix="/api/tasks/{task_id}/attachments", tags=["attachments"])
+
+SANDBOXED_PREVIEW_CSP = "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox"
 
 
 def _get_task_or_404(db: Session, task_id: int) -> Task:
@@ -46,7 +49,33 @@ def download_attachment(task_id: int, attachment_id: int, db: Session = Depends(
     if not path.is_file():
         raise HTTPException(404, "Attachment file is missing")
     media_type = attachment.content_type or "application/octet-stream"
-    return FileResponse(path, filename=attachment.filename, media_type=media_type)
+    return FileResponse(
+        path,
+        filename=attachment.filename,
+        media_type=media_type,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.get("/{attachment_id}/preview")
+def preview_attachment(task_id: int, attachment_id: int, db: Session = Depends(get_db)):
+    attachment = _get_attachment_or_404(db, task_id, attachment_id)
+    preview = preview_for(attachment.filename)
+    if preview is None:
+        raise HTTPException(415, "This file type can't be previewed")
+    path = attachment_service.attachment_file_path(attachment)
+    if not path.is_file():
+        raise HTTPException(404, "Attachment file is missing")
+    headers = {"X-Content-Type-Options": "nosniff"}
+    if preview.kind != "pdf":
+        headers["Content-Security-Policy"] = SANDBOXED_PREVIEW_CSP
+    return FileResponse(
+        path,
+        filename=attachment.filename,
+        media_type=preview.media_type,
+        content_disposition_type="inline",
+        headers=headers,
+    )
 
 
 @router.delete("/{attachment_id}", status_code=204)

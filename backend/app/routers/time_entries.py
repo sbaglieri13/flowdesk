@@ -28,10 +28,7 @@ def _get_entry_or_404(db: Session, task_id: int, entry_id: int) -> TimeEntry:
 def list_entries(task_id: int, db: Session = Depends(get_db)):
     _get_task_or_404(db, task_id)
     return (
-        db.query(TimeEntry)
-        .filter(TimeEntry.task_id == task_id)
-        .order_by(TimeEntry.logged_date.desc())
-        .all()
+        db.query(TimeEntry).filter(TimeEntry.task_id == task_id).order_by(TimeEntry.logged_date.desc()).all()
     )
 
 
@@ -54,6 +51,8 @@ def create_entry(task_id: int, payload: TimeEntryCreate, db: Session = Depends(g
 def update_entry(task_id: int, entry_id: int, payload: TimeEntryUpdate, db: Session = Depends(get_db)):
     entry = _get_entry_or_404(db, task_id, entry_id)
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if value is None and field != "note":
+            continue
         setattr(entry, field, value)
     db.commit()
     db.refresh(entry)

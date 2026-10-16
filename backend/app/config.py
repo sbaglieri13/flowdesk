@@ -1,8 +1,9 @@
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR = Path(os.environ.get("FLOWDESK_DATA_DIR") or PROJECT_ROOT / "data")
 BACKUPS_DIR = DATA_DIR / "backups"
 ATTACHMENTS_DIR = DATA_DIR / "attachments"
 DB_PATH = DATA_DIR / "flowdesk.db"

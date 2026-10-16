@@ -1,9 +1,14 @@
 import shutil
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 from backend.app import config
-from backend.app.database import engine
+from backend.app.database import engine, init_db
+
+
+class InvalidBackupError(ValueError):
+    pass
 
 
 def _backup_info(path: Path) -> dict:
@@ -20,6 +25,17 @@ def _safe_backup_path(filename: str) -> Path:
     if candidate.resolve().parent != config.BACKUPS_DIR.resolve():
         raise ValueError("Invalid backup filename")
     return candidate
+
+
+def _ensure_valid_database(path: Path) -> None:
+    try:
+        with sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True) as conn:
+            ok = conn.execute("PRAGMA quick_check").fetchone()
+            tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    except sqlite3.DatabaseError as exc:
+        raise InvalidBackupError(f"Backup file is not a valid database: {path.name}") from exc
+    if ok is None or ok[0] != "ok" or not {"tasks", "columns"} <= tables:
+        raise InvalidBackupError(f"Backup file is not a valid Flowdesk database: {path.name}")
 
 
 def export_backup() -> dict:
@@ -41,8 +57,10 @@ def restore_backup(filename: str) -> None:
     src = _safe_backup_path(filename)
     if not src.is_file():
         raise ValueError(f"Backup file not found: {filename}")
+    _ensure_valid_database(src)
     engine.dispose()
     shutil.copy2(src, config.DB_PATH)
+    init_db()
 
 
 def backup_file_path(filename: str) -> Path:

@@ -10,7 +10,7 @@ export interface StatsBucket {
 export interface StatsBreakdownItem {
   id: number | null
   label: string
-  emoji: string | null
+  icon: string | null
   color: string | null
   count: number
 }

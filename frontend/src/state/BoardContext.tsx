@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { columnsApi } from '../api/columns'
 import { prioritiesApi } from '../api/priorities'
 import { reportersApi } from '../api/reporters'
@@ -6,24 +6,7 @@ import { settingsApi } from '../api/settings'
 import { tagsApi } from '../api/tags'
 import { taskTypesApi } from '../api/taskTypes'
 import type { BoardColumn, Priority, Reporter, Settings, Tag, TaskType } from '../types'
-
-interface BoardContextValue {
-  columns: BoardColumn[]
-  tags: Tag[]
-  priorities: Priority[]
-  taskTypes: TaskType[]
-  reporters: Reporter[]
-  settings: Settings
-  loading: boolean
-  refreshColumns: () => Promise<void>
-  refreshTags: () => Promise<void>
-  refreshPriorities: () => Promise<void>
-  refreshTaskTypes: () => Promise<void>
-  refreshReporters: () => Promise<void>
-  refreshSettings: () => Promise<void>
-}
-
-const BoardContext = createContext<BoardContextValue | null>(null)
+import { BoardContext } from './useBoardData'
 
 export function BoardProvider({ children }: { children: ReactNode }) {
   const [columns, setColumns] = useState<BoardColumn[]>([])
@@ -85,10 +68,4 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       {children}
     </BoardContext.Provider>
   )
-}
-
-export function useBoardData(): BoardContextValue {
-  const ctx = useContext(BoardContext)
-  if (!ctx) throw new Error('useBoardData must be used within a BoardProvider')
-  return ctx
 }

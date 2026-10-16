@@ -1,8 +1,9 @@
-import { Flag, ListFilter, Search, Shapes, Tag as TagIcon, TagsIcon, UserRound, UserX, X } from 'lucide-react'
+import { Flag, Funnel, MagnifyingGlass, Shapes, Tag as TagIcon, TagSimple, User, UserMinus, X } from '../../icons/phosphor'
 import type { Priority, Reporter, Tag, TaskType } from '../../types'
 import { NO_REPORTER_FILTER_ID, NO_TAG_FILTER_ID, NO_TYPE_FILTER_ID } from '../../utils/taskFilters'
 import { Button } from '../ui/button'
 import { MultiListbox } from './MultiListbox'
+import { IconLabel } from './IconLabel'
 
 export interface TaskFiltersState {
   search: string
@@ -31,36 +32,43 @@ export function SearchFilterBar({ filters, onChange, tags, priorities, taskTypes
       value: NO_TAG_FILTER_ID,
       label: (
         <span className="flex items-center gap-1.5">
-          <TagsIcon className="h-3.5 w-3.5" strokeWidth={2} /> No tag
+          <TagSimple className="h-3.5 w-3.5" /> No tag
         </span>
       ),
     },
-    ...tags.map((tag) => ({ value: tag.id, label: tag.emoji ? `${tag.emoji} ${tag.name}` : tag.name })),
+    ...tags.map((tag) => ({ value: tag.id, label: <IconLabel icon={tag.icon} color={tag.color} label={tag.name} /> })),
   ]
   const priorityOptions = priorities
     .filter((p) => !p.is_hidden)
-    .map((p) => ({ value: p.id, label: `${p.emoji} ${p.name}` }))
+    .map((p) => ({ value: p.id, label: <IconLabel icon={p.icon} color={p.color} label={p.name} /> }))
   const typeOptions = [
     {
       value: NO_TYPE_FILTER_ID,
       label: (
         <span className="flex items-center gap-1.5">
-          <Shapes className="h-3.5 w-3.5" strokeWidth={2} /> Unassigned
+          <Shapes className="h-3.5 w-3.5" /> Unassigned
         </span>
       ),
     },
-    ...taskTypes.map((t) => ({ value: t.id, label: `${t.emoji} ${t.name}` })),
+    ...taskTypes.map((t) => ({ value: t.id, label: <IconLabel icon={t.icon} color={t.color} label={t.name} /> })),
   ]
   const reporterOptions = [
     {
       value: NO_REPORTER_FILTER_ID,
       label: (
         <span className="flex items-center gap-1.5">
-          <UserX className="h-3.5 w-3.5" strokeWidth={2} /> No reporter
+          <UserMinus className="h-3.5 w-3.5" /> No reporter
         </span>
       ),
     },
-    ...reporters.map((r) => ({ value: r.id, label: r.name })),
+    ...reporters.map((r) => ({
+      value: r.id,
+      label: (
+        <span className="flex items-center gap-1.5">
+          <User className="h-3.5 w-3.5 text-indigo-500" /> {r.name}
+        </span>
+      ),
+    })),
   ]
 
   const allPriorityIds = priorityOptions.map((o) => o.value)
@@ -78,15 +86,15 @@ export function SearchFilterBar({ filters, onChange, tags, priorities, taskTypes
     <div className="flex shrink-0 flex-col justify-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-soft dark:border-slate-700 dark:bg-slate-800/60">
       <div className="flex items-center gap-2">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">
-          <ListFilter className="h-3.5 w-3.5" strokeWidth={2.5} />
+          <Funnel className="h-3.5 w-3.5" />
         </span>
         <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Filters</span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search
+          <MagnifyingGlass
             className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-            strokeWidth={2}
+           
           />
           <input
             id="filter-search"
@@ -128,7 +136,7 @@ export function SearchFilterBar({ filters, onChange, tags, priorities, taskTypes
           onChange={(reporterIds) => onChange({ ...filters, reporterIds })}
           options={reporterOptions}
           placeholder="All reporters"
-          icon={UserRound}
+          icon={User}
         />
         {hasActiveFilters && (
           <Button
@@ -144,7 +152,7 @@ export function SearchFilterBar({ filters, onChange, tags, priorities, taskTypes
               })
             }
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2} /> Clear
+            <X className="h-3.5 w-3.5" /> Clear
           </Button>
         )}
       </div>

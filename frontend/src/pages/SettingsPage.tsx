@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, CheckCircle2, Database, Download, Link2, RotateCcw } from 'lucide-react'
+import { ArrowCounterClockwise, ArrowLeft, CheckCircle, Database, DownloadSimple, Link, Warning } from '../icons/phosphor'
 import { useCallback, useEffect, useState } from 'react'
 import { backupApi } from '../api/backup'
 import { settingsApi } from '../api/settings'
@@ -6,16 +6,11 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { useAsyncAction } from '../hooks/useAsyncAction'
-import { useBoardData } from '../state/BoardContext'
+import { useBoardData } from '../state/useBoardData'
 import type { BackupInfo } from '../types'
+import { formatFileSize } from '../utils/fileSize'
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.'
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
 
 interface SettingsPageProps {
   onBack: () => void
@@ -67,12 +62,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     <div className="nice-scrollbar h-full overflow-y-auto bg-gradient-to-br from-indigo-100/70 via-slate-100 to-slate-200/70 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20">
       <div className="mx-auto max-w-2xl space-y-6 p-6">
         <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
-          <ArrowLeft className="h-4 w-4" strokeWidth={2} /> Back to board
+          <ArrowLeft className="h-4 w-4" /> Back to board
         </Button>
 
         <Card className="p-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-base font-semibold text-slate-900 dark:text-slate-100">
-            <Link2 className="h-4 w-4 text-indigo-500" strokeWidth={2} /> External reference link
+            <Link className="h-4 w-4 text-indigo-500" /> External reference link
           </h2>
           <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
             If set, a task's external reference (e.g. a Jira key) is rendered as a clickable link using this base URL.
@@ -91,7 +86,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         <Card className="p-5">
           <h2 className="mb-2 flex items-center gap-1.5 text-base font-semibold text-slate-900 dark:text-slate-100">
-            <Database className="h-4 w-4 text-indigo-500" strokeWidth={2} /> Backups
+            <Database className="h-4 w-4 text-indigo-500" /> Backups
           </h2>
           <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
             Export a timestamped copy of the database, or restore a previous one. Restoring overwrites all current data.
@@ -109,13 +104,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                   <div>
                     <p className="font-mono text-xs text-slate-700 dark:text-slate-200">{backup.filename}</p>
                     <p className="text-xs text-slate-400">
-                      {new Date(backup.created_at).toLocaleString()} · {formatSize(backup.size_bytes)}
+                      {new Date(backup.created_at).toLocaleString()} · {formatFileSize(backup.size_bytes)}
                     </p>
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" asChild>
                       <a href={backupApi.downloadUrl(backup.filename)}>
-                        <Download className="h-3.5 w-3.5" strokeWidth={2} /> Download
+                        <DownloadSimple className="h-3.5 w-3.5" /> Download
                       </a>
                     </Button>
                     <Button
@@ -124,7 +119,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
                       className="text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-500/10"
                       onClick={() => setRestoringFile(backup.filename)}
                     >
-                      <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} /> Restore
+                      <ArrowCounterClockwise className="h-3.5 w-3.5" /> Restore
                     </Button>
                   </div>
                 </li>
@@ -135,12 +130,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         {message && (
           <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={2} /> {message}
+            <CheckCircle className="h-4 w-4 shrink-0" /> {message}
           </p>
         )}
         {error && (
           <p role="alert" className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">
-            <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={2} /> {error}
+            <Warning className="h-4 w-4 shrink-0" /> {error}
           </p>
         )}
       </div>

@@ -1,13 +1,14 @@
-import { AlertTriangle, CheckSquare, Clock, ExternalLink, Link2, Paperclip, Save, Trash2, UserRound } from 'lucide-react'
+import { CheckSquare, Clock, FloppyDisk, Link, Paperclip, Trash, User, Warning } from '../../icons/phosphor'
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
 import { attachmentsApi } from '../../api/attachments'
 import { reportersApi } from '../../api/reporters'
 import { tagsApi } from '../../api/tags'
 import { tasksApi, type TaskUpdatePayload } from '../../api/tasks'
-import { useBoardData } from '../../state/BoardContext'
+import { useBoardData } from '../../state/useBoardData'
 import type { ChecklistItem, Task, TimeEntry } from '../../types'
 import { checklistChanged, saveChecklistChanges } from '../../utils/checklistDiff'
+import { cleanDocUrls, sameDocUrls } from '../../utils/docLinks'
 import { saveTimeEntryChanges, timeEntriesChanged } from '../../utils/timeEntryDiff'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { FloatingWindow } from '../common/FloatingWindow'
@@ -16,11 +17,15 @@ import { Button } from '../ui/button'
 import { AttachmentsPanel } from './AttachmentsPanel'
 import { ChecklistPanel } from './ChecklistPanel'
 import { DescriptionNotesFields } from './DescriptionNotesFields'
+import { DocLinksEditor } from './DocLinksEditor'
+import { OpenLinkButton } from './OpenLinkButton'
 import { ReporterPicker } from './ReporterPicker'
 import { TaskFormSection } from './TaskFormSection'
 import { TaskMetaFields } from './TaskMetaFields'
 import { TaskTagsField } from './TaskTagsField'
 import { TimeTrackingPanel } from './TimeTrackingPanel'
+import { columnAccentColor, guessColumnIcon } from '../../utils/columnStyle'
+import { IconLabel } from '../common/IconLabel'
 
 interface TaskModalProps {
   task: Task
@@ -45,7 +50,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
   const [notes, setNotes] = useState(task.notes ?? '')
   const [externalReference, setExternalReference] = useState(task.external_reference ?? '')
   const [reporterId, setReporterId] = useState<number | null>(task.reporter?.id ?? null)
-  const [docUrl, setDocUrl] = useState(task.doc_url ?? '')
+  const [docUrls, setDocUrls] = useState<string[]>(task.doc_urls)
   const [statusId, setStatusId] = useState(task.column_id)
   const [priorityId, setPriorityId] = useState(task.priority.id)
   const [typeId, setTypeId] = useState<number | null>(task.type?.id ?? null)
@@ -58,6 +63,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
   const [activeSection, setActiveSection] = useState<'description' | 'notes'>('description')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
+  const [previewingAttachment, setPreviewingAttachment] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -68,7 +74,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
     notes !== (current.notes ?? '') ||
     externalReference !== (current.external_reference ?? '') ||
     reporterId !== (current.reporter?.id ?? null) ||
-    docUrl !== (current.doc_url ?? '') ||
+    !sameDocUrls(docUrls, current.doc_urls) ||
     statusId !== current.column_id ||
     priorityId !== current.priority.id ||
     typeId !== (current.type?.id ?? null) ||
@@ -86,7 +92,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
     setNotes(from.notes ?? '')
     setExternalReference(from.external_reference ?? '')
     setReporterId(from.reporter?.id ?? null)
-    setDocUrl(from.doc_url ?? '')
+    setDocUrls(from.doc_urls)
     setStatusId(from.column_id)
     setPriorityId(from.priority.id)
     setTypeId(from.type?.id ?? null)
@@ -115,7 +121,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
       if (notes !== (current.notes ?? '')) payload.notes = notes
       if (externalReference !== (current.external_reference ?? '')) payload.external_reference = externalReference || null
       if (reporterId !== (current.reporter?.id ?? null)) payload.reporter_id = reporterId
-      if (docUrl !== (current.doc_url ?? '')) payload.doc_url = docUrl || null
+      if (!sameDocUrls(docUrls, current.doc_urls)) payload.doc_urls = cleanDocUrls(docUrls)
       if (priorityId !== current.priority.id) payload.priority_id = priorityId
       if (typeId !== (current.type?.id ?? null)) payload.type_id = typeId
       if (deadline !== current.deadline) payload.deadline = deadline
@@ -167,8 +173,8 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
     }
   }
 
-  const handleCreateTag = async (name: string, color: string, emoji: string) => {
-    await tagsApi.create(name, color, emoji || undefined)
+  const handleCreateTag = async (name: string, color: string, icon: string) => {
+    await tagsApi.create(name, color, icon)
     await refreshTags()
   }
 
@@ -200,7 +206,10 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
   const statusOptions: ListboxOption<number>[] = columns
     .filter((c) => !c.is_hidden || c.id === current.column_id)
     .sort((a, b) => a.position - b.position)
-    .map((c) => ({ value: c.id, label: c.emoji ? `${c.emoji} ${c.name}` : c.name }))
+    .map((c) => ({
+      value: c.id,
+      label: <IconLabel icon={c.icon || guessColumnIcon(c.name)} color={columnAccentColor(c.position)} label={c.name} />,
+    }))
 
   const header = (
     <>
@@ -218,12 +227,12 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
     <>
       {deleteError && (
         <p role="alert" className="mb-2 flex items-center gap-1.5 text-xs text-red-600 dark:text-red-300">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {deleteError}
+          <Warning className="h-3.5 w-3.5 shrink-0" /> {deleteError}
         </p>
       )}
       <div className="flex justify-between">
         <Button variant="destructive" onClick={() => setConfirmingDelete(true)} disabled={saving}>
-          <Trash2 className="h-4 w-4" strokeWidth={2} /> Delete task
+          <Trash className="h-4 w-4" /> Delete task
         </Button>
         <div className="flex items-center gap-2">
           {dirty && <span className="text-xs text-amber-600 dark:text-amber-400">Unsaved changes</span>}
@@ -231,7 +240,7 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
             Cancel
           </Button>
           <Button variant="gradient" onClick={handleSave} disabled={!dirty || !title.trim() || saving}>
-            <Save className="h-4 w-4" strokeWidth={2} /> {saving ? 'Saving…' : 'Save'}
+            <FloppyDisk className="h-4 w-4" /> {saving ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </div>
@@ -245,13 +254,13 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
         header={header}
         footer={footer}
         ariaLabel="Task details"
-        disableEscape={confirmingDelete || confirmingDiscard}
+        disableEscape={confirmingDelete || confirmingDiscard || previewingAttachment}
         defaultWidth={840}
       >
         <div className="space-y-3">
           {saveError && (
             <p className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-300" role="alert">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {saveError}
+              <Warning className="h-3.5 w-3.5 shrink-0" /> {saveError}
             </p>
           )}
 
@@ -277,47 +286,31 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
               onDescriptionChange={setDescription}
               notes={notes}
               onNotesChange={setNotes}
-              defaultMode="preview"
             />
           </TaskFormSection>
 
           <TaskFormSection>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  <UserRound className="h-3.5 w-3.5" strokeWidth={2} /> Reporter
-                </label>
+                <span
+                  id="task-reporter-label"
+                  className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
+                >
+                  <User className="h-3.5 w-3.5" /> Reporter
+                </span>
                 <ReporterPicker
                   reporters={reporters}
                   selectedId={reporterId}
                   onChange={setReporterId}
                   onCreateReporter={handleCreateReporter}
+                  labelId="task-reporter-label"
                 />
               </div>
               <div>
                 <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                  <Link2 className="h-3.5 w-3.5" strokeWidth={2} /> Documentation link
+                  <Link className="h-3.5 w-3.5" /> Documentation links
                 </label>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    value={docUrl}
-                    onChange={(e) => setDocUrl(e.target.value)}
-                    placeholder="Confluence, Notion, wiki page…"
-                    className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-indigo-500/20"
-                  />
-                  {docUrl && (
-                    <a
-                      href={docUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-300"
-                      aria-label="Open documentation link"
-                      title={docUrl}
-                    >
-                      <ExternalLink className="h-4 w-4" strokeWidth={2} />
-                    </a>
-                  )}
-                </div>
+                <DocLinksEditor urls={docUrls} onChange={setDocUrls} />
               </div>
             </div>
           </TaskFormSection>
@@ -333,14 +326,14 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
 
           <TaskFormSection>
             <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <CheckSquare className="h-3.5 w-3.5" strokeWidth={2} /> Checklist
+              <CheckSquare className="h-3.5 w-3.5" /> Checklist
             </label>
             <ChecklistPanel items={checklist} onItemsChange={setChecklist} />
           </TaskFormSection>
 
           <TaskFormSection>
             <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <Paperclip className="h-3.5 w-3.5" strokeWidth={2} /> Attachments
+              <Paperclip className="h-3.5 w-3.5" /> Attachments
             </label>
             <AttachmentsPanel
               taskId={current.id}
@@ -348,36 +341,31 @@ export function TaskModal({ task, onClose, onUpdated, onDeleted }: TaskModalProp
               onRemoveExisting={(id) => setRemovedAttachmentIds((prev) => [...prev, id])}
               pendingFiles={pendingFiles}
               onPendingFilesChange={setPendingFiles}
+              onPreviewOpenChange={setPreviewingAttachment}
             />
           </TaskFormSection>
 
           <TaskFormSection>
             <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <Clock className="h-3.5 w-3.5" strokeWidth={2} /> Time tracking
+              <Clock className="h-3.5 w-3.5" /> Time tracking
             </label>
             <TimeTrackingPanel entries={timeEntries} onEntriesChange={setTimeEntries} />
           </TaskFormSection>
 
           <TaskFormSection>
             <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-              <Link2 className="h-3.5 w-3.5" strokeWidth={2} /> External reference
+              <Link className="h-3.5 w-3.5" /> External reference
             </label>
-            <input
-              value={externalReference}
-              onChange={(e) => setExternalReference(e.target.value)}
-              placeholder="e.g. PROJ-123"
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-indigo-500/20"
-            />
-            {externalUrl && (
-              <a
-                href={externalUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 inline-block text-xs text-indigo-500 hover:underline"
-              >
-                {externalUrl}
-              </a>
-            )}
+            <div className="flex items-center gap-1.5">
+              <input
+                value={externalReference}
+                onChange={(e) => setExternalReference(e.target.value)}
+                placeholder="e.g. PROJ-123"
+                aria-label="External reference"
+                className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-indigo-500/20"
+              />
+              {externalUrl && <OpenLinkButton href={externalUrl} label="Open external reference" />}
+            </div>
           </TaskFormSection>
         </div>
       </FloatingWindow>

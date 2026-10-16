@@ -1,15 +1,17 @@
-import { AlertTriangle, CheckSquare, Link2, Paperclip, Rocket, Sparkles, UserRound } from 'lucide-react'
+import { CheckSquare, Link, Paperclip, RocketLaunch, Sparkle, User, Warning } from '../../icons/phosphor'
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
 import { attachmentsApi } from '../../api/attachments'
 import { reportersApi } from '../../api/reporters'
 import { tagsApi } from '../../api/tags'
 import { tasksApi } from '../../api/tasks'
-import { useBoardData } from '../../state/BoardContext'
+import { useBoardData } from '../../state/useBoardData'
 import type { Task } from '../../types'
 import { FloatingWindow } from '../common/FloatingWindow'
 import { Button } from '../ui/button'
+import { cleanDocUrls } from '../../utils/docLinks'
 import { DescriptionNotesFields } from './DescriptionNotesFields'
+import { DocLinksEditor } from './DocLinksEditor'
 import { DraftAttachmentsEditor } from './DraftAttachmentsEditor'
 import { DraftChecklistEditor } from './DraftChecklistEditor'
 import { ReporterPicker } from './ReporterPicker'
@@ -37,15 +39,15 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
   const [deadline, setDeadline] = useState<string | null>(null)
   const [externalReference, setExternalReference] = useState('')
   const [reporterId, setReporterId] = useState<number | null>(null)
-  const [docUrl, setDocUrl] = useState('')
+  const [docUrls, setDocUrls] = useState<string[]>([])
   const [tagIds, setTagIds] = useState<number[]>([])
   const [checklist, setChecklist] = useState<string[]>([])
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const handleCreateTag = async (name: string, color: string, emoji: string) => {
-    const tag = await tagsApi.create(name, color, emoji || undefined)
+  const handleCreateTag = async (name: string, color: string, icon: string) => {
+    const tag = await tagsApi.create(name, color, icon)
     await refreshTags()
     setTagIds((prev) => [...prev, tag.id])
   }
@@ -71,7 +73,7 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
         deadline,
         external_reference: externalReference || null,
         reporter_id: reporterId,
-        doc_url: docUrl || null,
+        doc_urls: cleanDocUrls(docUrls),
         tag_ids: tagIds,
         checklist_items: checklist,
       })
@@ -96,7 +98,7 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
 
   const header = (
     <h3 className="flex items-center gap-1.5 text-lg font-semibold text-slate-900 dark:text-slate-100">
-      <Sparkles className="h-5 w-5 text-indigo-500" strokeWidth={2} /> New task
+      <Sparkle className="h-5 w-5 text-indigo-500" /> New task
     </h3>
   )
 
@@ -106,7 +108,7 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
         Cancel
       </Button>
       <Button variant="gradient" onClick={handleSubmit} disabled={!title.trim() || submitting}>
-        <Rocket className="h-4 w-4" strokeWidth={2} /> {submitting ? 'Creating…' : 'Create task'}
+        <RocketLaunch className="h-4 w-4" /> {submitting ? 'Creating…' : 'Create task'}
       </Button>
     </div>
   )
@@ -116,7 +118,7 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
       <div className="space-y-3">
         {submitError && (
           <p role="alert" className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-300">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {submitError}
+            <Warning className="h-3.5 w-3.5 shrink-0" /> {submitError}
           </p>
         )}
 
@@ -167,14 +169,14 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
 
         <TaskFormSection>
           <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <CheckSquare className="h-3.5 w-3.5" strokeWidth={2} /> Checklist
+            <CheckSquare className="h-3.5 w-3.5" /> Checklist
           </label>
           <DraftChecklistEditor items={checklist} onChange={setChecklist} />
         </TaskFormSection>
 
         <TaskFormSection>
           <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <Paperclip className="h-3.5 w-3.5" strokeWidth={2} /> Attachments
+            <Paperclip className="h-3.5 w-3.5" /> Attachments
           </label>
           <DraftAttachmentsEditor files={pendingFiles} onChange={setPendingFiles} />
         </TaskFormSection>
@@ -182,33 +184,32 @@ export function TaskCreateModal({ columnId, onClose, onCreated }: TaskCreateModa
         <TaskFormSection>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <UserRound className="h-3.5 w-3.5" strokeWidth={2} /> Reporter
-              </label>
+              <span
+                id="task-reporter-label"
+                className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
+              >
+                <User className="h-3.5 w-3.5" /> Reporter
+              </span>
               <ReporterPicker
                 reporters={reporters}
                 selectedId={reporterId}
                 onChange={setReporterId}
                 onCreateReporter={handleCreateReporter}
+                labelId="task-reporter-label"
               />
             </div>
             <div>
               <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <Link2 className="h-3.5 w-3.5" strokeWidth={2} /> Documentation link
+                <Link className="h-3.5 w-3.5" /> Documentation links
               </label>
-              <input
-                value={docUrl}
-                onChange={(e) => setDocUrl(e.target.value)}
-                placeholder="Confluence, Notion, wiki page…"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:ring-indigo-500/20"
-              />
+              <DocLinksEditor urls={docUrls} onChange={setDocUrls} />
             </div>
           </div>
         </TaskFormSection>
 
         <TaskFormSection>
           <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-            <Link2 className="h-3.5 w-3.5" strokeWidth={2} /> External reference
+            <Link className="h-3.5 w-3.5" /> External reference
           </label>
           <input
             value={externalReference}

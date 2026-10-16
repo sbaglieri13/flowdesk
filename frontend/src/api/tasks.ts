@@ -20,7 +20,7 @@ export interface TaskCreatePayload {
   deadline?: string | null
   external_reference?: string | null
   reporter_id?: number | null
-  doc_url?: string | null
+  doc_urls?: string[]
   tag_ids?: number[]
   checklist_items?: string[]
 }
@@ -34,7 +34,7 @@ export interface TaskUpdatePayload {
   deadline?: string | null
   external_reference?: string | null
   reporter_id?: number | null
-  doc_url?: string | null
+  doc_urls?: string[]
   tag_ids?: number[]
 }
 

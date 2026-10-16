@@ -1,22 +1,27 @@
-import { Check } from 'lucide-react'
+import { Check } from '../../icons/phosphor'
 import { useState, type CSSProperties } from 'react'
 import { ApiError } from '../../api/client'
 import type { Tag } from '../../types'
-import { EmojiPicker } from '../common/EmojiPicker'
+import { suggestedColor } from '../../icons/catalog'
+import { EntityIcon } from '../common/EntityIcon'
+import { ColorSwatches } from '../common/ColorSwatches'
+import { IconPicker } from '../common/IconPicker'
 import { TAG_SWATCHES } from '../../utils/tagColors'
+
+const DEFAULT_TAG_ICON = 'tag'
 
 interface TagPickerProps {
   allTags: Tag[]
   selectedIds: number[]
   onToggle: (tagId: number) => void
-  onCreateTag: (name: string, color: string, emoji: string) => Promise<void>
+  onCreateTag: (name: string, color: string, icon: string) => Promise<void>
 }
 
 export function TagPicker({ allTags, selectedIds, onToggle, onCreateTag }: TagPickerProps) {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState(TAG_SWATCHES[0])
-  const [emoji, setEmoji] = useState('')
+  const [icon, setIcon] = useState(DEFAULT_TAG_ICON)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -25,9 +30,9 @@ export function TagPicker({ allTags, selectedIds, onToggle, onCreateTag }: TagPi
     setError(null)
     setSubmitting(true)
     try {
-      await onCreateTag(name.trim(), color, emoji)
+      await onCreateTag(name.trim(), color, icon)
       setName('')
-      setEmoji('')
+      setIcon(DEFAULT_TAG_ICON)
       setCreating(false)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create tag. Please try again.')
@@ -59,8 +64,8 @@ export function TagPicker({ allTags, selectedIds, onToggle, onCreateTag }: TagPi
                 } as CSSProperties
               }
             >
-              {selected && <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />}
-              {tag.emoji ? `${tag.emoji} ` : ''}
+              {selected && <Check className="h-3 w-3" aria-hidden="true" />}
+              {!selected && <EntityIcon name={tag.icon} className="h-3.5 w-3.5" />}
               {tag.name}
             </button>
           )
@@ -77,6 +82,16 @@ export function TagPicker({ allTags, selectedIds, onToggle, onCreateTag }: TagPi
       {creating && (
         <div className="space-y-2 rounded-lg border border-slate-200 p-2.5 dark:border-slate-700">
           <div className="flex items-center gap-2">
+            <IconPicker
+              value={icon}
+              onChange={(next) => {
+                setIcon(next)
+                setColor(suggestedColor(next) ?? color)
+              }}
+              color={color}
+              label="Icon for new tag"
+              disabled={submitting}
+            />
             <input
               type="text"
               value={name}
@@ -100,20 +115,7 @@ export function TagPicker({ allTags, selectedIds, onToggle, onCreateTag }: TagPi
           </div>
 
           <div className="space-y-2">
-            <EmojiPicker value={emoji} onChange={setEmoji} disabled={submitting} />
-            <div className="flex flex-wrap gap-1">
-              {TAG_SWATCHES.map((swatch) => (
-                <button
-                  key={swatch}
-                  type="button"
-                  onClick={() => setColor(swatch)}
-                  disabled={submitting}
-                  className={`h-5 w-5 rounded-full disabled:opacity-60 ${color === swatch ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
-                  style={{ backgroundColor: swatch }}
-                  aria-label={`Choose color ${swatch}`}
-                />
-              ))}
-            </div>
+            <ColorSwatches value={color} onChange={setColor} disabled={submitting} />
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>

@@ -1,8 +1,8 @@
-import type { ComponentType } from 'react'
+import type { Icon } from '../../icons/phosphor'
 import { Card } from '../ui/card'
 
 interface StatTileProps {
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>
+  icon: Icon
   label: string
   value: string
   hint?: string
@@ -12,7 +12,7 @@ export function StatTile({ icon: Icon, label, value, hint }: StatTileProps) {
   return (
     <Card className="flex flex-col gap-1 p-4">
       <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-        <Icon className="h-3.5 w-3.5 text-indigo-500" strokeWidth={2} />
+        <Icon className="h-3.5 w-3.5 text-indigo-500" />
         {label}
       </span>
       <span className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{value}</span>

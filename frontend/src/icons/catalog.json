@@ -1,0 +1,552 @@
+[
+  {
+    "key": "tray",
+    "label": "Inbox",
+    "group": "Workflow",
+    "keywords": "new backlog inbox todo",
+    "color": "#6366f1"
+  },
+  {
+    "key": "magnifying-glass",
+    "label": "Search",
+    "group": "Workflow",
+    "keywords": "analysis search research review",
+    "color": "#a855f7"
+  },
+  {
+    "key": "barricade",
+    "label": "In progress",
+    "group": "Workflow",
+    "keywords": "progress construction wip doing",
+    "color": "#eab308"
+  },
+  {
+    "key": "hourglass",
+    "label": "Waiting",
+    "group": "Workflow",
+    "keywords": "waiting pending slow",
+    "color": "#eab308"
+  },
+  {
+    "key": "timer",
+    "label": "Timer",
+    "group": "Workflow",
+    "keywords": "time timer sla"
+  },
+  {
+    "key": "flask",
+    "label": "Testing",
+    "group": "Workflow",
+    "keywords": "test testing qa lab",
+    "color": "#a855f7"
+  },
+  {
+    "key": "eye",
+    "label": "Review",
+    "group": "Workflow",
+    "keywords": "review watch look",
+    "color": "#a855f7"
+  },
+  {
+    "key": "pause-circle",
+    "label": "On hold",
+    "group": "Workflow",
+    "keywords": "hold pause blocked"
+  },
+  {
+    "key": "check-circle",
+    "label": "Done",
+    "group": "Workflow",
+    "keywords": "done complete finished",
+    "color": "#22c55e"
+  },
+  {
+    "key": "skip-forward",
+    "label": "Skipped",
+    "group": "Workflow",
+    "keywords": "skip skipped cancelled"
+  },
+  {
+    "key": "package",
+    "label": "Package",
+    "group": "Workflow",
+    "keywords": "deploy release package batch",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "rocket-launch",
+    "label": "Launch",
+    "group": "Workflow",
+    "keywords": "launch release deploy rocket",
+    "color": "#6366f1"
+  },
+  {
+    "key": "archive",
+    "label": "Archive",
+    "group": "Workflow",
+    "keywords": "archive stored"
+  },
+  {
+    "key": "x-circle",
+    "label": "Rejected",
+    "group": "Workflow",
+    "keywords": "rejected cancelled no",
+    "color": "#ef4444"
+  },
+  {
+    "key": "arrows-clockwise",
+    "label": "Recurring",
+    "group": "Workflow",
+    "keywords": "recurring refresh sync"
+  },
+  {
+    "key": "play-circle",
+    "label": "Started",
+    "group": "Workflow",
+    "keywords": "start play running",
+    "color": "#22c55e"
+  },
+  {
+    "key": "flag-checkered",
+    "label": "Milestone",
+    "group": "Workflow",
+    "keywords": "milestone goal finish",
+    "color": "#22c55e"
+  },
+  {
+    "key": "clipboard-text",
+    "label": "Planned",
+    "group": "Workflow",
+    "keywords": "planned list clipboard spec"
+  },
+  {
+    "key": "kanban",
+    "label": "Board",
+    "group": "Workflow",
+    "keywords": "board kanban columns",
+    "color": "#6366f1"
+  },
+  {
+    "key": "list-checks",
+    "label": "Checklist",
+    "group": "Workflow",
+    "keywords": "checklist tasks steps",
+    "color": "#22c55e"
+  },
+  {
+    "key": "fire",
+    "label": "Fire",
+    "group": "Priority & signals",
+    "keywords": "urgent fire hot critical",
+    "color": "#ef4444"
+  },
+  {
+    "key": "lightning",
+    "label": "Lightning",
+    "group": "Priority & signals",
+    "keywords": "high fast streaming energy",
+    "color": "#f97316"
+  },
+  {
+    "key": "warning",
+    "label": "Warning",
+    "group": "Priority & signals",
+    "keywords": "warning risk caution",
+    "color": "#eab308"
+  },
+  {
+    "key": "warning-circle",
+    "label": "Alert",
+    "group": "Priority & signals",
+    "keywords": "alert attention",
+    "color": "#f97316"
+  },
+  {
+    "key": "siren",
+    "label": "Siren",
+    "group": "Priority & signals",
+    "keywords": "emergency incident outage",
+    "color": "#ef4444"
+  },
+  {
+    "key": "arrow-fat-up",
+    "label": "Very high",
+    "group": "Priority & signals",
+    "keywords": "highest very high",
+    "color": "#f97316"
+  },
+  {
+    "key": "arrow-up",
+    "label": "Up",
+    "group": "Priority & signals",
+    "keywords": "high up increase",
+    "color": "#f97316"
+  },
+  {
+    "key": "minus",
+    "label": "Neutral",
+    "group": "Priority & signals",
+    "keywords": "medium normal neutral",
+    "color": "#eab308"
+  },
+  {
+    "key": "arrow-down",
+    "label": "Down",
+    "group": "Priority & signals",
+    "keywords": "low down decrease",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "snowflake",
+    "label": "Snowflake",
+    "group": "Priority & signals",
+    "keywords": "low cold frozen",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "star",
+    "label": "Star",
+    "group": "Priority & signals",
+    "keywords": "star favourite important",
+    "color": "#eab308"
+  },
+  {
+    "key": "gauge",
+    "label": "Gauge",
+    "group": "Priority & signals",
+    "keywords": "performance speed gauge"
+  },
+  {
+    "key": "target",
+    "label": "Target",
+    "group": "Priority & signals",
+    "keywords": "goal target objective",
+    "color": "#ef4444"
+  },
+  {
+    "key": "push-pin",
+    "label": "Pin",
+    "group": "Priority & signals",
+    "keywords": "pinned pin sticky"
+  },
+  {
+    "key": "bug",
+    "label": "Bug",
+    "group": "Work types",
+    "keywords": "bug defect error",
+    "color": "#ef4444"
+  },
+  {
+    "key": "sparkle",
+    "label": "Sparkle",
+    "group": "Work types",
+    "keywords": "feature new sparkle",
+    "color": "#6366f1"
+  },
+  {
+    "key": "trend-up",
+    "label": "Trend up",
+    "group": "Work types",
+    "keywords": "improvement growth trend",
+    "color": "#22c55e"
+  },
+  {
+    "key": "wrench",
+    "label": "Wrench",
+    "group": "Work types",
+    "keywords": "maintenance fix tooling",
+    "color": "#f97316"
+  },
+  {
+    "key": "hammer",
+    "label": "Hammer",
+    "group": "Work types",
+    "keywords": "build construction",
+    "color": "#f97316"
+  },
+  {
+    "key": "code",
+    "label": "Code",
+    "group": "Work types",
+    "keywords": "code development",
+    "color": "#6366f1"
+  },
+  {
+    "key": "terminal-window",
+    "label": "Terminal",
+    "group": "Work types",
+    "keywords": "script terminal cli",
+    "color": "#6366f1"
+  },
+  {
+    "key": "git-branch",
+    "label": "Branch",
+    "group": "Work types",
+    "keywords": "git branch version",
+    "color": "#6366f1"
+  },
+  {
+    "key": "git-pull-request",
+    "label": "Pull request",
+    "group": "Work types",
+    "keywords": "merge pull request review",
+    "color": "#6366f1"
+  },
+  {
+    "key": "puzzle-piece",
+    "label": "Puzzle",
+    "group": "Work types",
+    "keywords": "integration plugin puzzle",
+    "color": "#a855f7"
+  },
+  {
+    "key": "paint-brush",
+    "label": "Design",
+    "group": "Work types",
+    "keywords": "design ui style",
+    "color": "#ec4899"
+  },
+  {
+    "key": "book-open",
+    "label": "Docs",
+    "group": "Work types",
+    "keywords": "documentation docs read",
+    "color": "#a855f7"
+  },
+  {
+    "key": "file-text",
+    "label": "Document",
+    "group": "Work types",
+    "keywords": "document file text"
+  },
+  {
+    "key": "note-pencil",
+    "label": "Notes",
+    "group": "Work types",
+    "keywords": "notes writing edit"
+  },
+  {
+    "key": "chat-circle",
+    "label": "Discussion",
+    "group": "Work types",
+    "keywords": "chat discussion meeting"
+  },
+  {
+    "key": "question",
+    "label": "Question",
+    "group": "Work types",
+    "keywords": "question doubt help"
+  },
+  {
+    "key": "lightbulb",
+    "label": "Idea",
+    "group": "Work types",
+    "keywords": "idea insight",
+    "color": "#eab308"
+  },
+  {
+    "key": "shield-check",
+    "label": "Security",
+    "group": "Work types",
+    "keywords": "security safe compliance",
+    "color": "#22c55e"
+  },
+  {
+    "key": "lock",
+    "label": "Lock",
+    "group": "Work types",
+    "keywords": "private locked access"
+  },
+  {
+    "key": "test-tube",
+    "label": "Experiment",
+    "group": "Work types",
+    "keywords": "experiment poc test",
+    "color": "#a855f7"
+  },
+  {
+    "key": "broom",
+    "label": "Cleanup",
+    "group": "Work types",
+    "keywords": "cleanup chore tidy"
+  },
+  {
+    "key": "database",
+    "label": "Database",
+    "group": "Topics",
+    "keywords": "database data sql",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "cloud",
+    "label": "Cloud",
+    "group": "Topics",
+    "keywords": "cloud aws azure",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "hard-drives",
+    "label": "Servers",
+    "group": "Topics",
+    "keywords": "server infra hardware",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "cpu",
+    "label": "CPU",
+    "group": "Topics",
+    "keywords": "compute cpu performance"
+  },
+  {
+    "key": "globe",
+    "label": "Web",
+    "group": "Topics",
+    "keywords": "web internet global",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "plugs-connected",
+    "label": "Integration",
+    "group": "Topics",
+    "keywords": "api connection integration",
+    "color": "#a855f7"
+  },
+  {
+    "key": "flow-arrow",
+    "label": "Flow",
+    "group": "Topics",
+    "keywords": "flow pipeline etl stream",
+    "color": "#06b6d4"
+  },
+  {
+    "key": "graph",
+    "label": "Graph",
+    "group": "Topics",
+    "keywords": "graph network dependencies"
+  },
+  {
+    "key": "chart-line",
+    "label": "Metrics",
+    "group": "Topics",
+    "keywords": "metrics analytics trend",
+    "color": "#22c55e"
+  },
+  {
+    "key": "chart-bar",
+    "label": "Report",
+    "group": "Topics",
+    "keywords": "report chart statistics",
+    "color": "#22c55e"
+  },
+  {
+    "key": "table",
+    "label": "Table",
+    "group": "Topics",
+    "keywords": "table spreadsheet data"
+  },
+  {
+    "key": "folder",
+    "label": "Folder",
+    "group": "Topics",
+    "keywords": "folder files storage"
+  },
+  {
+    "key": "envelope",
+    "label": "Email",
+    "group": "Topics",
+    "keywords": "email mail message"
+  },
+  {
+    "key": "users",
+    "label": "Team",
+    "group": "Topics",
+    "keywords": "team people group"
+  },
+  {
+    "key": "user",
+    "label": "Person",
+    "group": "Topics",
+    "keywords": "person user owner"
+  },
+  {
+    "key": "calendar-blank",
+    "label": "Calendar",
+    "group": "Topics",
+    "keywords": "calendar date schedule"
+  },
+  {
+    "key": "clock",
+    "label": "Clock",
+    "group": "Topics",
+    "keywords": "time clock hours"
+  },
+  {
+    "key": "currency-eur",
+    "label": "Money",
+    "group": "Topics",
+    "keywords": "money cost budget euro",
+    "color": "#22c55e"
+  },
+  {
+    "key": "shopping-cart",
+    "label": "Shop",
+    "group": "Topics",
+    "keywords": "shop ecommerce order"
+  },
+  {
+    "key": "truck",
+    "label": "Logistics",
+    "group": "Topics",
+    "keywords": "logistics shipping delivery"
+  },
+  {
+    "key": "factory",
+    "label": "Production",
+    "group": "Topics",
+    "keywords": "factory production manufacturing"
+  },
+  {
+    "key": "buildings",
+    "label": "Company",
+    "group": "Topics",
+    "keywords": "company office business"
+  },
+  {
+    "key": "tag",
+    "label": "Tag",
+    "group": "Topics",
+    "keywords": "tag label"
+  },
+  {
+    "key": "bookmark-simple",
+    "label": "Bookmark",
+    "group": "Topics",
+    "keywords": "bookmark saved"
+  },
+  {
+    "key": "heart",
+    "label": "Heart",
+    "group": "Topics",
+    "keywords": "love favourite health",
+    "color": "#ec4899"
+  },
+  {
+    "key": "megaphone",
+    "label": "Announcement",
+    "group": "Topics",
+    "keywords": "marketing announcement",
+    "color": "#ec4899"
+  },
+  {
+    "key": "briefcase",
+    "label": "Business",
+    "group": "Topics",
+    "keywords": "business work client"
+  },
+  {
+    "key": "house",
+    "label": "Home",
+    "group": "Topics",
+    "keywords": "home house"
+  }
+]

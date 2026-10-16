@@ -1,4 +1,4 @@
-import { Maximize2, Minimize2, X } from 'lucide-react'
+import { ArrowsIn, ArrowsOut, X } from '../../icons/phosphor'
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useFloatingPanel } from '../../hooks/useFloatingPanel'
@@ -55,7 +55,7 @@ export function ModalBackdrop({ onClose, children, title, disableEscape = false 
             aria-label={maximized ? 'Restore window size' : 'Maximize window'}
             title={maximized ? 'Restore' : 'Maximize'}
           >
-            {maximized ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+            {maximized ? <ArrowsIn className="h-3.5 w-3.5" /> : <ArrowsOut className="h-3.5 w-3.5" />}
           </Button>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7" aria-label="Close">
             <X className="h-3.5 w-3.5" />

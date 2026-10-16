@@ -20,7 +20,7 @@ def list_tags(db: Session = Depends(get_db)):
 def create_tag(payload: TagCreate, db: Session = Depends(get_db)):
     if db.query(Tag).filter(Tag.name == payload.name).first():
         raise HTTPException(409, DUPLICATE_NAME_ERROR)
-    tag = Tag(name=payload.name, color=payload.color, emoji=payload.emoji)
+    tag = Tag(name=payload.name, color=payload.color, icon=payload.icon)
     db.add(tag)
     try:
         db.commit()

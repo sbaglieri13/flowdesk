@@ -21,6 +21,8 @@ def list_backups():
 def restore_backup(payload: BackupRestoreRequest):
     try:
         backup_service.restore_backup(payload.filename)
+    except backup_service.InvalidBackupError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 

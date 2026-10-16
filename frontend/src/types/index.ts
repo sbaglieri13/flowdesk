@@ -1,7 +1,7 @@
 export interface Priority {
   id: number
   name: string
-  emoji: string
+  icon: string
   color: string
   position: number
   is_default: boolean
@@ -11,7 +11,7 @@ export interface Priority {
 export interface TaskType {
   id: number
   name: string
-  emoji: string
+  icon: string
   color: string
   position: number
   is_default: boolean
@@ -22,12 +22,13 @@ export interface Tag {
   id: number
   name: string
   color: string
-  emoji: string | null
+  icon: string
 }
 
 export interface Reporter {
   id: number
   name: string
+  task_count?: number
 }
 
 export interface ChecklistItem {
@@ -43,6 +44,7 @@ export interface Attachment {
   content_type: string | null
   size_bytes: number
   created_at: string
+  preview_kind: 'image' | 'pdf' | 'text' | null
 }
 
 export interface TimeEntry {
@@ -56,7 +58,7 @@ export interface TimeEntry {
 export interface BoardColumn {
   id: number
   name: string
-  emoji: string | null
+  icon: string | null
   position: number
   is_default: boolean
   is_hidden: boolean
@@ -79,7 +81,7 @@ export interface Task {
   external_reference: string | null
   external_reference_url: string | null
   reporter: Reporter | null
-  doc_url: string | null
+  doc_urls: string[]
   created_at: string
   updated_at: string
   closed_at: string | null

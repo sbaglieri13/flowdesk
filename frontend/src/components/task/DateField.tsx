@@ -1,5 +1,5 @@
-import { Calendar } from 'lucide-react'
-import { useState } from 'react'
+import { CalendarBlank } from '../../icons/phosphor'
+import { useId, useState } from 'react'
 import { DayPicker } from 'react-day-picker'
 import 'react-day-picker/style.css'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
@@ -8,6 +8,7 @@ interface DateFieldProps {
   value: string | null
   onChange: (value: string | null) => void
   placeholder?: string
+  labelId?: string
 }
 
 function parseISODate(value: string): Date {
@@ -49,7 +50,8 @@ const dayPickerClassNames = {
   disabled: '[&>button]:opacity-30',
 }
 
-export function DateField({ value, onChange, placeholder = 'No deadline' }: DateFieldProps) {
+export function DateField({ value, onChange, placeholder = 'No deadline', labelId }: DateFieldProps) {
+  const buttonId = useId()
   const [open, setOpen] = useState(false)
 
   useEscapeKey(() => {
@@ -59,11 +61,13 @@ export function DateField({ value, onChange, placeholder = 'No deadline' }: Date
   return (
     <div className="relative w-full">
       <button
+        id={buttonId}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-labelledby={labelId ? `${labelId} ${buttonId}` : undefined}
         className="flex w-full items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 transition hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
       >
-        <Calendar className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={2} />
+        <CalendarBlank className="h-4 w-4 shrink-0 text-slate-400" />
         {value ? formatDisplay(value) : <span className="text-slate-400">{placeholder}</span>}
       </button>
 

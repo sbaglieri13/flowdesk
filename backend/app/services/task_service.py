@@ -3,8 +3,18 @@ from datetime import UTC, datetime
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from backend.app.models import BoardColumn, ChecklistItem, Priority, Reporter, Tag, Task, TaskType
+from backend.app.models import (
+    BoardColumn,
+    ChecklistItem,
+    Priority,
+    Reporter,
+    Tag,
+    Task,
+    TaskDocLink,
+    TaskType,
+)
 from backend.app.schemas import TaskCreate, TaskUpdate
+from backend.app.services.attachment_service import attachment_file_path
 from backend.app.services.defaults_service import default_priority_id
 from backend.app.services.position_service import next_task_position, reposition_tasks_in_column
 from backend.app.services.settings_service import next_task_display_code
@@ -12,6 +22,8 @@ from backend.app.services.settings_service import next_task_display_code
 NO_TAG_FILTER_ID = -1
 NO_TYPE_FILTER_ID = -1
 NO_REPORTER_FILTER_ID = -1
+
+NON_NULLABLE_TASK_FIELDS = ("title", "priority_id")
 
 _TASK_READ_OPTIONS = (
     joinedload(Task.priority),
@@ -21,6 +33,7 @@ _TASK_READ_OPTIONS = (
     selectinload(Task.checklist_items),
     selectinload(Task.attachments),
     selectinload(Task.time_entries),
+    selectinload(Task.doc_links),
 )
 
 
@@ -33,6 +46,11 @@ def _resolve_tags(db: Session, tag_ids: list[int]) -> list[Tag]:
     if missing:
         raise ValueError(f"Unknown tag ids: {sorted(missing)}")
     return tags
+
+
+def _build_doc_links(urls: list[str] | None) -> list[TaskDocLink]:
+    cleaned = [url for url in (urls or []) if url]
+    return [TaskDocLink(url=url, position=index) for index, url in enumerate(cleaned)]
 
 
 def _resolve_priority_id(db: Session, priority_id: int) -> int:
@@ -99,14 +117,15 @@ def list_tasks(
         if conditions:
             query = query.filter(or_(*conditions))
     if search:
-        like = f"%{search}%"
+        escaped = search.replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
+        like = f"%{escaped}%"
         query = query.filter(
             or_(
-                Task.title.ilike(like),
-                Task.description.ilike(like),
-                Task.notes.ilike(like),
-                Task.external_reference.ilike(like),
-                Task.display_code.ilike(like),
+                Task.title.ilike(like, escape="\\"),
+                Task.description.ilike(like, escape="\\"),
+                Task.notes.ilike(like, escape="\\"),
+                Task.external_reference.ilike(like, escape="\\"),
+                Task.display_code.ilike(like, escape="\\"),
             )
         )
     return query.order_by(Task.column_id, Task.position).all()
@@ -137,7 +156,7 @@ def create_task(db: Session, payload: TaskCreate) -> Task:
         deadline=payload.deadline,
         external_reference=payload.external_reference,
         reporter_id=reporter_id,
-        doc_url=payload.doc_url,
+        doc_links=_build_doc_links(payload.doc_urls),
         closed_at=datetime.now(UTC).replace(tzinfo=None) if column.is_done_state else None,
         tags=_resolve_tags(db, payload.tag_ids),
     )
@@ -155,6 +174,9 @@ def create_task(db: Session, payload: TaskCreate) -> Task:
 
 def update_task(db: Session, task: Task, payload: TaskUpdate) -> Task:
     data = payload.model_dump(exclude_unset=True)
+    for field in NON_NULLABLE_TASK_FIELDS:
+        if data.get(field) is None:
+            data.pop(field, None)
     if "tag_ids" in data:
         task.tags = _resolve_tags(db, data.pop("tag_ids"))
     if "priority_id" in data:
@@ -163,6 +185,8 @@ def update_task(db: Session, task: Task, payload: TaskUpdate) -> Task:
         data["type_id"] = _resolve_type_id(db, data["type_id"])
     if "reporter_id" in data:
         data["reporter_id"] = _resolve_reporter_id(db, data["reporter_id"])
+    if "doc_urls" in data:
+        task.doc_links = _build_doc_links(data.pop("doc_urls"))
     for field, value in data.items():
         setattr(task, field, value)
     db.commit()
@@ -171,8 +195,6 @@ def update_task(db: Session, task: Task, payload: TaskUpdate) -> Task:
 
 
 def delete_task(db: Session, task: Task) -> None:
-    from backend.app.services.attachment_service import attachment_file_path
-
     attachment_paths = [attachment_file_path(a) for a in task.attachments]
     db.delete(task)
     db.commit()

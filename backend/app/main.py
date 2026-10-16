@@ -23,7 +23,7 @@ from backend.app.seed import seed_if_empty
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):  # noqa: ARG001 - required by FastAPI's lifespan signature
+async def lifespan(_app: FastAPI):
     config.ensure_data_dirs()
     prepare_schema()
     db = SessionLocal()

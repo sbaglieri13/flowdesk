@@ -1,23 +1,31 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+DocUrl = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+HexColor = Annotated[
+    str, StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^#[0-9a-fA-F]{6}$")
+]
+IconName = Annotated[
+    str, StringConstraints(strip_whitespace=True, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$", max_length=40)
+]
 
 
 class BoardColumnCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(min_length=1, max_length=100)
-    emoji: str | None = Field(default=None, max_length=8)
+    icon: IconName | None = None
 
 
 class BoardColumnUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    emoji: str | None = None
+    icon: IconName | None = None
     is_hidden: bool | None = None
     is_done_state: bool | None = None
 
@@ -27,7 +35,7 @@ class BoardColumnRead(BaseModel):
 
     id: int
     name: str
-    emoji: str | None
+    icon: str | None
     position: int
     is_default: bool
     is_hidden: bool
@@ -49,16 +57,16 @@ class TagCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(min_length=1, max_length=50)
-    color: str
-    emoji: str | None = Field(default=None, max_length=8)
+    color: HexColor
+    icon: IconName = "tag"
 
 
 class TagUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=1, max_length=50)
-    color: str | None = None
-    emoji: str | None = None
+    color: HexColor | None = None
+    icon: IconName | None = None
 
 
 class TagRead(BaseModel):
@@ -67,7 +75,7 @@ class TagRead(BaseModel):
     id: int
     name: str
     color: str
-    emoji: str | None
+    icon: str
 
 
 class ReporterCreate(BaseModel):
@@ -89,20 +97,24 @@ class ReporterRead(BaseModel):
     name: str
 
 
+class ReporterWithCountRead(ReporterRead):
+    task_count: int = 0
+
+
 class PriorityCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(min_length=1, max_length=50)
-    emoji: str = Field(min_length=1, max_length=8)
-    color: str
+    icon: IconName
+    color: HexColor
 
 
 class PriorityUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=1, max_length=50)
-    emoji: str | None = Field(default=None, min_length=1, max_length=8)
-    color: str | None = None
+    icon: IconName | None = None
+    color: HexColor | None = None
     is_hidden: bool | None = None
 
 
@@ -111,7 +123,7 @@ class PriorityRead(BaseModel):
 
     id: int
     name: str
-    emoji: str
+    icon: str
     color: str
     position: int
     is_default: bool
@@ -122,16 +134,16 @@ class TaskTypeCreate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(min_length=1, max_length=50)
-    emoji: str = Field(min_length=1, max_length=8)
-    color: str
+    icon: IconName
+    color: HexColor
 
 
 class TaskTypeUpdate(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=1, max_length=50)
-    emoji: str | None = Field(default=None, min_length=1, max_length=8)
-    color: str | None = None
+    icon: IconName | None = None
+    color: HexColor | None = None
     is_hidden: bool | None = None
 
 
@@ -140,7 +152,7 @@ class TaskTypeRead(BaseModel):
 
     id: int
     name: str
-    emoji: str
+    icon: str
     color: str
     position: int
     is_default: bool
@@ -181,6 +193,7 @@ class AttachmentRead(BaseModel):
     content_type: str | None
     size_bytes: int
     created_at: datetime
+    preview_kind: Literal["image", "pdf", "text"] | None = None
 
 
 class TimeEntryCreate(BaseModel):
@@ -221,7 +234,7 @@ class TaskCreate(BaseModel):
     deadline: date | None = None
     external_reference: str | None = Field(default=None, max_length=100)
     reporter_id: int | None = None
-    doc_url: str | None = Field(default=None, max_length=500)
+    doc_urls: list[DocUrl] = []
     tag_ids: list[int] = []
     checklist_items: list[str] = []
 
@@ -237,7 +250,7 @@ class TaskUpdate(BaseModel):
     deadline: date | None = None
     external_reference: str | None = Field(default=None, max_length=100)
     reporter_id: int | None = None
-    doc_url: str | None = Field(default=None, max_length=500)
+    doc_urls: list[DocUrl] | None = None
     tag_ids: list[int] | None = None
 
 
@@ -257,7 +270,7 @@ class TaskRead(BaseModel):
     external_reference: str | None
     external_reference_url: str | None = None
     reporter: ReporterRead | None
-    doc_url: str | None
+    doc_urls: list[str] = []
     created_at: datetime
     updated_at: datetime
     closed_at: datetime | None
@@ -310,7 +323,7 @@ class StatsBucketRead(BaseModel):
 class StatsBreakdownItemRead(BaseModel):
     id: int | None
     label: str
-    emoji: str | None = None
+    icon: str | None = None
     color: str | None = None
     count: int
 

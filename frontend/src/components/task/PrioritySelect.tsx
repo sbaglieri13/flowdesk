@@ -1,18 +1,20 @@
 import type { Priority } from '../../types'
 import { Listbox, type ListboxOption } from '../common/Listbox'
+import { IconLabel } from '../common/IconLabel'
 
 interface PrioritySelectProps {
   value: number
   onChange: (value: number) => void
   priorities: Priority[]
+  labelId?: string
 }
 
-export function PrioritySelect({ value, onChange, priorities }: PrioritySelectProps) {
+export function PrioritySelect({ value, onChange, priorities, labelId }: PrioritySelectProps) {
   const visible = priorities.filter((p) => !p.is_hidden || p.id === value)
   const options: ListboxOption<number>[] = visible.map((p) => ({
     value: p.id,
-    label: `${p.emoji} ${p.name}`,
+    label: <IconLabel icon={p.icon} color={p.color} label={p.name} />,
   }))
 
-  return <Listbox value={value} onChange={onChange} options={options} />
+  return <Listbox value={value} onChange={onChange} options={options} labelId={labelId} />
 }

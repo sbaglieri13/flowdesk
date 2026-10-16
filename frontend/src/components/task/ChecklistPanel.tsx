@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Pencil, Plus, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, PencilSimple, Plus, X } from '../../icons/phosphor'
 import { useRef, useState, type KeyboardEvent } from 'react'
 import type { ChecklistItem } from '../../types'
 import { Button } from '../ui/button'
@@ -125,7 +125,7 @@ export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
               onClick={() => startEdit(item)}
               aria-label="Edit item"
             >
-              <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+              <PencilSimple className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -135,7 +135,7 @@ export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
               disabled={index === 0}
               aria-label="Move up"
             >
-              <ArrowUp className="h-3.5 w-3.5" strokeWidth={2} />
+              <ArrowUp className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -145,7 +145,7 @@ export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
               disabled={index === items.length - 1}
               aria-label="Move down"
             >
-              <ArrowDown className="h-3.5 w-3.5" strokeWidth={2} />
+              <ArrowDown className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -154,13 +154,13 @@ export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
               onClick={() => handleDelete(item.id)}
               aria-label="Delete item"
             >
-              <X className="h-3.5 w-3.5" strokeWidth={2} />
+              <X className="h-3.5 w-3.5" />
             </Button>
           </li>
         ))}
       </ul>
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-start gap-2">
         <textarea
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
@@ -170,12 +170,12 @@ export function ChecklistPanel({ items, onItemsChange }: ChecklistPanelProps) {
               handleAdd()
             }
           }}
-          rows={2}
+          rows={1}
           placeholder="Add checklist item... (Shift+Enter for a new line)"
-          className="flex-1 resize-y rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800"
+          className="field-sizing-content max-h-40 min-h-9 flex-1 resize-none rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm leading-5 transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-800 dark:focus:ring-indigo-500/20"
         />
         <Button variant="outline" className="shrink-0" onClick={handleAdd}>
-          <Plus className="h-4 w-4" strokeWidth={2} /> Add
+          <Plus className="h-4 w-4" /> Add
         </Button>
       </div>
     </div>

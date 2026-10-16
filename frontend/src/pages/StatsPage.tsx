@@ -1,16 +1,4 @@
-import {
-  AlertTriangle,
-  ArrowLeft,
-  BarChart3,
-  CalendarRange,
-  CheckCircle2,
-  Clock,
-  Flag,
-  Layers,
-  Shapes,
-  Timer,
-  UserRound,
-} from 'lucide-react'
+import { ArrowLeft, CalendarDots, ChartBar, CheckCircle, Clock, Flag, Shapes, Stack, Timer, User, Warning } from '../icons/phosphor'
 import { useEffect, useState } from 'react'
 import { statsApi, type StatsOverview } from '../api/stats'
 import { BarTrendChart } from '../components/stats/BarTrendChart'
@@ -20,6 +8,7 @@ import { Listbox, type ListboxOption } from '../components/common/Listbox'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { DateField } from '../components/task/DateField'
+import { formatHours } from '../utils/hours'
 
 type RangeMode = 30 | 90 | 180 | 365 | 'always' | 'custom'
 type Bucket = 'day' | 'week' | 'month'
@@ -38,10 +27,6 @@ const BUCKET_OPTIONS: ListboxOption<Bucket>[] = [
   { value: 'week', label: 'By week' },
   { value: 'month', label: 'By month' },
 ]
-
-function formatHours(hours: number): string {
-  return `${hours % 1 === 0 ? hours : hours.toFixed(1)}h`
-}
 
 function daysAgoIso(n: number): string {
   const d = new Date()
@@ -102,25 +87,24 @@ export function StatsPage({ onBack }: StatsPageProps) {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rangeMode, customFrom, customTo, bucket, customRangeIncomplete])
 
   return (
     <div className="nice-scrollbar h-full overflow-y-auto bg-gradient-to-br from-indigo-100/70 via-slate-100 to-slate-200/70 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/20">
       <div className="mx-auto max-w-5xl space-y-4 p-4">
         <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
-          <ArrowLeft className="h-4 w-4" strokeWidth={2} /> Back to board
+          <ArrowLeft className="h-4 w-4" /> Back to board
         </Button>
 
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-indigo-500" strokeWidth={2} />
+          <ChartBar className="h-5 w-5 text-indigo-500" />
           <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Productivity statistics</h1>
         </div>
 
         <div className="flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3 shadow-soft dark:border-slate-700 dark:bg-slate-800/60">
           <div className="flex items-center gap-2">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">
-              <CalendarRange className="h-3.5 w-3.5" strokeWidth={2.5} />
+              <CalendarDots className="h-3.5 w-3.5" />
             </span>
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Date range</span>
           </div>
@@ -142,7 +126,7 @@ export function StatsPage({ onBack }: StatsPageProps) {
               </>
             )}
             <div className="w-32">
-              <Listbox value={bucket} onChange={setBucket} options={BUCKET_OPTIONS} icon={Layers} />
+              <Listbox value={bucket} onChange={setBucket} options={BUCKET_OPTIONS} icon={Stack} />
             </div>
           </div>
           {customRangeIncomplete && (
@@ -155,7 +139,7 @@ export function StatsPage({ onBack }: StatsPageProps) {
             role="alert"
             className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
           >
-            <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={2} /> {error}
+            <Warning className="h-4 w-4 shrink-0" /> {error}
           </div>
         )}
 
@@ -165,7 +149,7 @@ export function StatsPage({ onBack }: StatsPageProps) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <StatTile icon={Timer} label="Open tasks" value={String(overview.open_tasks)} />
                 <StatTile
-                  icon={CheckCircle2}
+                  icon={CheckCircle}
                   label="Closed"
                   value={String(overview.closed_tasks)}
                   hint={formatRangeHint(overview.since, overview.until)}
@@ -202,26 +186,26 @@ export function StatsPage({ onBack }: StatsPageProps) {
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card className="p-4">
                   <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    <Shapes className="h-3.5 w-3.5 text-indigo-500" strokeWidth={2} /> By type
+                    <Shapes className="h-3.5 w-3.5 text-indigo-500" /> By type
                   </h2>
-                  <BreakdownList items={overview.by_type} />
+                  <BreakdownList items={overview.by_type} emptyMessage="No tasks in this period." />
                 </Card>
                 <Card className="p-4">
                   <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    <Flag className="h-3.5 w-3.5 text-indigo-500" strokeWidth={2} /> By priority
+                    <Flag className="h-3.5 w-3.5 text-indigo-500" /> By priority
                   </h2>
-                  <BreakdownList items={overview.by_priority} />
+                  <BreakdownList items={overview.by_priority} emptyMessage="No tasks in this period." />
                 </Card>
                 <Card className="p-4">
                   <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    <UserRound className="h-3.5 w-3.5 text-indigo-500" strokeWidth={2} /> By reporter
+                    <User className="h-3.5 w-3.5 text-indigo-500" /> By reporter
                   </h2>
-                  <BreakdownList items={overview.by_reporter} />
+                  <BreakdownList items={overview.by_reporter} emptyMessage="No tasks in this period." />
                 </Card>
               </div>
 
               <p className="text-xs text-slate-400 dark:text-slate-500">
-                "By type/priority/reporter" reflect all tasks on the board, regardless of the period selected above.
+                "By type/priority/reporter" count tasks created, closed, or with hours logged in the selected period.
               </p>
             </div>
           )}

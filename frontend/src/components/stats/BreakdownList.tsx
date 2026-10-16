@@ -1,4 +1,5 @@
 import type { StatsBreakdownItem } from '../../api/stats'
+import { EntityIcon } from '../common/EntityIcon'
 
 interface BreakdownListProps {
   items: StatsBreakdownItem[]
@@ -16,13 +17,16 @@ export function BreakdownList({ items, emptyMessage }: BreakdownListProps) {
     <ul className="space-y-2">
       {items.map((item) => (
         <li key={`${item.id ?? 'none'}-${item.label}`} className="flex items-center gap-2">
-          <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: item.color ?? '#94a3b8' }}
-            aria-hidden="true"
-          />
+          {item.icon ? (
+            <EntityIcon name={item.icon} className="h-4 w-4 shrink-0" style={{ color: item.color ?? undefined }} />
+          ) : (
+            <span
+              className="mx-[3px] h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: item.color ?? '#94a3b8' }}
+              aria-hidden="true"
+            />
+          )}
           <span className="w-28 shrink-0 truncate text-sm text-slate-700 dark:text-slate-200" title={item.label}>
-            {item.emoji ? `${item.emoji} ` : ''}
             {item.label}
           </span>
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">

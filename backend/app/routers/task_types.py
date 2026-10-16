@@ -24,7 +24,7 @@ def create_task_type(payload: TaskTypeCreate, db: Session = Depends(get_db)):
     max_position = db.query(func.max(TaskType.position)).scalar()
     task_type = TaskType(
         name=payload.name,
-        emoji=payload.emoji,
+        icon=payload.icon,
         color=payload.color,
         position=0 if max_position is None else max_position + 1,
     )

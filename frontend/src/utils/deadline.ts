@@ -1,5 +1,4 @@
-import { AlertCircle, Calendar, Clock } from 'lucide-react'
-import type { ComponentType } from 'react'
+import { CalendarBlank, Clock, WarningCircle, type Icon } from '../icons/phosphor'
 
 export type DeadlineStatus = 'overdue' | 'soon' | 'normal' | 'none'
 
@@ -22,10 +21,10 @@ export const DEADLINE_BADGE_CLASSES: Record<DeadlineStatus, string> = {
   none: '',
 }
 
-export const DEADLINE_ICONS: Record<DeadlineStatus, ComponentType<{ className?: string; strokeWidth?: number }> | null> = {
-  overdue: AlertCircle,
+export const DEADLINE_ICONS: Record<DeadlineStatus, Icon | null> = {
+  overdue: WarningCircle,
   soon: Clock,
-  normal: Calendar,
+  normal: CalendarBlank,
   none: null,
 }
 

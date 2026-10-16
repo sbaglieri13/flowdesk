@@ -1,7 +1,7 @@
 import { checklistApi } from '../api/checklist'
 import type { ChecklistItem } from '../types'
 
-export function isDraftChecklistItem(item: ChecklistItem): boolean {
+function isDraftChecklistItem(item: ChecklistItem): boolean {
   return item.id < 0
 }
 

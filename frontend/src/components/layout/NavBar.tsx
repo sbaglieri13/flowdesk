@@ -1,4 +1,4 @@
-import { BarChart3, Settings } from 'lucide-react'
+import { ChartBar, GearSix } from '../../icons/phosphor'
 import { ThemeToggle } from '../common/ThemeToggle'
 
 export type View = 'board' | 'stats' | 'settings'
@@ -44,7 +44,7 @@ export function NavBar({ view, onViewChange }: NavBarProps) {
               : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
           }`}
         >
-          <BarChart3 className="h-4 w-4" strokeWidth={2} /> Stats
+          <ChartBar className="h-4 w-4" /> Stats
         </button>
         <button
           type="button"
@@ -56,7 +56,7 @@ export function NavBar({ view, onViewChange }: NavBarProps) {
               : 'text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
           }`}
         >
-          <Settings className="h-4 w-4" strokeWidth={2} /> Settings
+          <GearSix className="h-4 w-4" /> Settings
         </button>
         <ThemeToggle />
       </div>

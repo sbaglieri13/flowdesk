@@ -33,7 +33,7 @@ def _bucket_label(start: date, bucket: Bucket) -> str:
     raise ValueError(f"Unknown bucket: {bucket}")
 
 
-def _breakdown(rows, key_fn, label_fn, emoji_fn=lambda _row: None, color_fn=lambda _row: None) -> list[dict]:
+def _breakdown(rows, key_fn, label_fn, icon_fn=lambda _row: None, color_fn=lambda _row: None) -> list[dict]:
     counts: dict = defaultdict(int)
     first_seen: dict = {}
     for row in rows:
@@ -44,7 +44,7 @@ def _breakdown(rows, key_fn, label_fn, emoji_fn=lambda _row: None, color_fn=lamb
         {
             "id": key if isinstance(key, int) else None,
             "label": label_fn(first_seen[key]),
-            "emoji": emoji_fn(first_seen[key]),
+            "icon": icon_fn(first_seen[key]),
             "color": color_fn(first_seen[key]),
             "count": count,
         }
@@ -109,22 +109,33 @@ def get_overview(db: Session, since: date | None, until: date, bucket: Bucket) -
     )
     avg_closed_per_bucket = round(len(closed_in_range) / len(bucket_starts), 2) if bucket_starts else 0.0
 
+    def _in_range(d: date) -> bool:
+        return since <= d <= until
+
+    active_tasks = [
+        t
+        for t in all_tasks
+        if _in_range(t.created_at.date())
+        or (t.closed_at is not None and _in_range(t.closed_at.date()))
+        or any(_in_range(e.logged_date) for e in t.time_entries)
+    ]
+
     by_type = _breakdown(
-        all_tasks,
+        active_tasks,
         lambda t: t.type_id,
         lambda t: t.type.name if t.type else "Unassigned",
-        lambda t: t.type.emoji if t.type else None,
+        lambda t: t.type.icon if t.type else None,
         lambda t: t.type.color if t.type else None,
     )
     by_priority = _breakdown(
-        all_tasks,
+        active_tasks,
         lambda t: t.priority_id,
         lambda t: t.priority.name,
-        lambda t: t.priority.emoji,
+        lambda t: t.priority.icon,
         lambda t: t.priority.color,
     )
     by_reporter = _breakdown(
-        all_tasks,
+        active_tasks,
         lambda t: t.reporter_id,
         lambda t: t.reporter.name if t.reporter else "Unassigned",
     )[:8]

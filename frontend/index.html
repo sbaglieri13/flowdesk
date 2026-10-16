@@ -6,11 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Flowdesk</title>
     <script>
-      // Apply the persisted theme before first paint to avoid a flash of the wrong theme.
       (function () {
-        var stored = localStorage.getItem('flowdesk-theme');
-        var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (dark) document.documentElement.classList.add('dark');
+        if (localStorage.getItem('flowdesk-theme') === 'dark') document.documentElement.classList.add('dark');
       })();
     </script>
   </head>

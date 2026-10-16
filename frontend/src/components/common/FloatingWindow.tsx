@@ -1,5 +1,5 @@
+import { ArrowsIn, ArrowsOut, X } from '../../icons/phosphor'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Maximize2, Minimize2, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useFloatingPanel } from '../../hooks/useFloatingPanel'
@@ -75,7 +75,7 @@ export function FloatingWindow({
                 aria-label={maximized ? 'Restore window size' : 'Maximize window'}
                 title={maximized ? 'Restore' : 'Maximize'}
               >
-                {maximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                {maximized ? <ArrowsIn className="h-4 w-4" /> : <ArrowsOut className="h-4 w-4" />}
               </Button>
               <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
                 <X className="h-4 w-4" />

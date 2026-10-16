@@ -1,22 +1,35 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models import Reporter, Task
-from backend.app.schemas import ReporterCreate, ReporterRead, ReporterUpdate
+from backend.app.schemas import ReporterCreate, ReporterUpdate, ReporterWithCountRead
 
 router = APIRouter(prefix="/api/reporters", tags=["reporters"])
 
 DUPLICATE_NAME_ERROR = "A reporter with this name already exists"
 
 
-@router.get("", response_model=list[ReporterRead])
+def _with_count(db: Session, reporter: Reporter) -> ReporterWithCountRead:
+    count = db.query(func.count(Task.id)).filter(Task.reporter_id == reporter.id).scalar() or 0
+    return ReporterWithCountRead(id=reporter.id, name=reporter.name, task_count=count)
+
+
+@router.get("", response_model=list[ReporterWithCountRead])
 def list_reporters(db: Session = Depends(get_db)):
-    return db.query(Reporter).order_by(Reporter.name).all()
+    rows = (
+        db.query(Reporter, func.count(Task.id))
+        .outerjoin(Task, Task.reporter_id == Reporter.id)
+        .group_by(Reporter.id)
+        .order_by(Reporter.name)
+        .all()
+    )
+    return [ReporterWithCountRead(id=r.id, name=r.name, task_count=count) for r, count in rows]
 
 
-@router.post("", response_model=ReporterRead, status_code=201)
+@router.post("", response_model=ReporterWithCountRead, status_code=201)
 def create_reporter(payload: ReporterCreate, db: Session = Depends(get_db)):
     if db.query(Reporter).filter(Reporter.name == payload.name).first():
         raise HTTPException(409, DUPLICATE_NAME_ERROR)
@@ -28,10 +41,10 @@ def create_reporter(payload: ReporterCreate, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(409, DUPLICATE_NAME_ERROR) from exc
     db.refresh(reporter)
-    return reporter
+    return _with_count(db, reporter)
 
 
-@router.patch("/{reporter_id}", response_model=ReporterRead)
+@router.patch("/{reporter_id}", response_model=ReporterWithCountRead)
 def update_reporter(reporter_id: int, payload: ReporterUpdate, db: Session = Depends(get_db)):
     reporter = db.get(Reporter, reporter_id)
     if reporter is None:
@@ -45,7 +58,7 @@ def update_reporter(reporter_id: int, payload: ReporterUpdate, db: Session = Dep
         db.rollback()
         raise HTTPException(409, DUPLICATE_NAME_ERROR) from exc
     db.refresh(reporter)
-    return reporter
+    return _with_count(db, reporter)
 
 
 @router.delete("/{reporter_id}", status_code=204)

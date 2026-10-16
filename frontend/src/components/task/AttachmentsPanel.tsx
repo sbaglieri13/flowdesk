@@ -1,8 +1,8 @@
-import { Paperclip, X } from 'lucide-react'
+import { useState } from 'react'
 import { attachmentsApi } from '../../api/attachments'
 import type { Attachment } from '../../types'
-import { formatFileSize } from '../../utils/fileSize'
-import { Button } from '../ui/button'
+import { AttachmentPreview } from './AttachmentPreview'
+import { AttachmentRow } from './AttachmentRow'
 import { DraftAttachmentsEditor } from './DraftAttachmentsEditor'
 
 interface AttachmentsPanelProps {
@@ -11,6 +11,7 @@ interface AttachmentsPanelProps {
   onRemoveExisting: (attachmentId: number) => void
   pendingFiles: File[]
   onPendingFilesChange: (files: File[]) => void
+  onPreviewOpenChange?: (open: boolean) => void
 }
 
 export function AttachmentsPanel({
@@ -19,45 +20,49 @@ export function AttachmentsPanel({
   onRemoveExisting,
   pendingFiles,
   onPendingFilesChange,
+  onPreviewOpenChange,
 }: AttachmentsPanelProps) {
   const safeItems = items ?? []
+  const [previewing, setPreviewing] = useState<Attachment | null>(null)
+
+  const openPreview = (attachment: Attachment) => {
+    setPreviewing(attachment)
+    onPreviewOpenChange?.(true)
+  }
+
+  const closePreview = () => {
+    setPreviewing(null)
+    onPreviewOpenChange?.(false)
+  }
 
   return (
     <div className="space-y-2">
       {safeItems.length > 0 && (
-        <ul className="space-y-1">
+        <ul className="space-y-1.5">
           {safeItems.map((attachment) => (
-            <li
+            <AttachmentRow
               key={attachment.id}
-              className="flex items-center gap-2 rounded-lg px-1 py-1 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-            >
-              <a
-                href={attachmentsApi.downloadUrl(taskId, attachment.id)}
-                download={attachment.filename}
-                className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-indigo-600 hover:underline dark:text-indigo-300"
-                title={`Download ${attachment.filename}`}
-              >
-                <Paperclip className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden="true" />
-                <span className="truncate">{attachment.filename}</span>
-              </a>
-              <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
-                {formatFileSize(attachment.size_bytes)}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
-                onClick={() => onRemoveExisting(attachment.id)}
-                aria-label={`Remove attachment ${attachment.filename}`}
-              >
-                <X className="h-3.5 w-3.5" strokeWidth={2} />
-              </Button>
-            </li>
+              filename={attachment.filename}
+              sizeBytes={attachment.size_bytes}
+              downloadUrl={attachmentsApi.downloadUrl(taskId, attachment.id)}
+              onPreview={attachment.preview_kind ? () => openPreview(attachment) : undefined}
+              onRemove={() => onRemoveExisting(attachment.id)}
+            />
           ))}
         </ul>
       )}
 
       <DraftAttachmentsEditor files={pendingFiles} onChange={onPendingFilesChange} />
+
+      {previewing?.preview_kind && (
+        <AttachmentPreview
+          filename={previewing.filename}
+          kind={previewing.preview_kind}
+          previewUrl={attachmentsApi.previewUrl(taskId, previewing.id)}
+          downloadUrl={attachmentsApi.downloadUrl(taskId, previewing.id)}
+          onClose={closePreview}
+        />
+      )}
     </div>
   )
 }

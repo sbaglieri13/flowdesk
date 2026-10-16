@@ -10,4 +10,5 @@ export const attachmentsApi = {
   },
   remove: (taskId: number, attachmentId: number) => api.delete<void>(`/tasks/${taskId}/attachments/${attachmentId}`),
   downloadUrl: (taskId: number, attachmentId: number) => `/api/tasks/${taskId}/attachments/${attachmentId}/download`,
+  previewUrl: (taskId: number, attachmentId: number) => `/api/tasks/${taskId}/attachments/${attachmentId}/preview`,
 }

@@ -1,6 +1,5 @@
-import { FileText, StickyNote } from 'lucide-react'
-import type { ComponentType } from 'react'
-import { MarkdownEditor } from './MarkdownEditor'
+import { FileText, Note, type Icon } from '../../icons/phosphor'
+import { RichTextEditor } from './RichTextEditor'
 
 type Section = 'description' | 'notes'
 
@@ -11,12 +10,11 @@ interface DescriptionNotesFieldsProps {
   onDescriptionChange: (value: string) => void
   notes: string
   onNotesChange: (value: string) => void
-  defaultMode?: 'edit' | 'preview'
 }
 
-const TABS: [Section, string, ComponentType<{ className?: string; strokeWidth?: number }>][] = [
+const TABS: [Section, string, Icon][] = [
   ['description', 'Description', FileText],
-  ['notes', 'Notes', StickyNote],
+  ['notes', 'Notes', Note],
 ]
 
 export function DescriptionNotesFields({
@@ -26,8 +24,7 @@ export function DescriptionNotesFields({
   onDescriptionChange,
   notes,
   onNotesChange,
-  defaultMode,
-}:DescriptionNotesFieldsProps) {
+}: DescriptionNotesFieldsProps) {
   return (
     <>
       <div className="mb-1 flex gap-1">
@@ -42,25 +39,27 @@ export function DescriptionNotesFields({
                 : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
             }`}
           >
-            <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+            <Icon className="h-3.5 w-3.5" />
             {label}
           </button>
         ))}
       </div>
 
       {activeSection === 'description' ? (
-        <MarkdownEditor
+        <RichTextEditor
+          key="description"
           value={description}
           onChange={onDescriptionChange}
-          placeholder="Description (Markdown supported)..."
-          defaultMode={defaultMode}
+          placeholder="Describe the task…"
+          ariaLabel="Description"
         />
       ) : (
-        <MarkdownEditor
+        <RichTextEditor
+          key="notes"
           value={notes}
           onChange={onNotesChange}
-          placeholder="Extra notes: analysis results, meeting notes, links..."
-          defaultMode={defaultMode}
+          placeholder="Extra notes: analysis results, meeting notes, links…"
+          ariaLabel="Notes"
         />
       )}
     </>

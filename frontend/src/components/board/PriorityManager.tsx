@@ -1,23 +1,24 @@
-import { AlertTriangle, Eye, EyeOff, Flag, Lock, Plus, Trash2, X } from 'lucide-react'
+import { Eye, EyeSlash, Flag, Lock, Plus, Trash, Warning } from '../../icons/phosphor'
 import { useState } from 'react'
 import { ApiError } from '../../api/client'
 import { prioritiesApi } from '../../api/priorities'
-import { useBoardData } from '../../state/BoardContext'
+import { suggestedColor } from '../../icons/catalog'
+import { useBoardData } from '../../state/useBoardData'
 import type { Priority } from '../../types'
 import { TAG_SWATCHES } from '../../utils/tagColors'
 import { ColorChip } from '../common/ColorChip'
 import { ColorSwatches } from '../common/ColorSwatches'
 import { ConfirmDialog } from '../common/ConfirmDialog'
-import { EmojiSuggestionGrid } from '../common/EmojiSuggestionGrid'
+import { IconPicker } from '../common/IconPicker'
 import { ModalBackdrop } from '../common/ModalBackdrop'
 import { Button } from '../ui/button'
+
+const DEFAULT_ICON = 'minus'
 
 interface PriorityManagerProps {
   onClose: () => void
 }
 
-const emojiInputClass =
-  'w-11 shrink-0 rounded-md border border-slate-200 bg-white px-1.5 py-1 text-center text-sm disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800'
 const nameInputClass =
   'min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
 const fieldLabelClass = 'w-12 shrink-0 text-xs font-medium text-slate-400 dark:text-slate-500'
@@ -25,7 +26,7 @@ const fieldLabelClass = 'w-12 shrink-0 text-xs font-medium text-slate-400 dark:t
 export function PriorityManager({ onClose }: PriorityManagerProps) {
   const { priorities, refreshPriorities } = useBoardData()
   const [newName, setNewName] = useState('')
-  const [newEmoji, setNewEmoji] = useState('')
+  const [newIcon, setNewIcon] = useState(DEFAULT_ICON)
   const [newColor, setNewColor] = useState(TAG_SWATCHES[0])
   const [createError, setCreateError] = useState<string | null>(null)
   const [renameErrors, setRenameErrors] = useState<Record<number, string>>({})
@@ -34,13 +35,13 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const handleCreate = async () => {
-    if (!newName.trim() || !newEmoji || submitting) return
+    if (!newName.trim() || submitting) return
     setSubmitting(true)
     setCreateError(null)
     try {
-      await prioritiesApi.create(newName.trim(), newEmoji, newColor)
+      await prioritiesApi.create(newName.trim(), newIcon, newColor)
       setNewName('')
-      setNewEmoji('')
+      setNewIcon(DEFAULT_ICON)
       await refreshPriorities()
     } catch (err) {
       setCreateError(err instanceof ApiError ? err.message : 'Could not create priority. Please try again.')
@@ -63,15 +64,15 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
     }
   }
 
-  const handleReemoji = async (priority: Priority, emoji: string) => {
-    if (!emoji || emoji === priority.emoji) return
+  const handleReicon = async (priority: Priority, icon: string) => {
+    if (icon === priority.icon) return
     try {
-      await prioritiesApi.update(priority.id, { emoji })
+      await prioritiesApi.update(priority.id, { icon })
       await refreshPriorities()
     } catch (err) {
       setRenameErrors((prev) => ({
         ...prev,
-        [priority.id]: err instanceof ApiError ? err.message : 'Could not update emoji.',
+        [priority.id]: err instanceof ApiError ? err.message : 'Could not update the icon.',
       }))
     }
   }
@@ -119,19 +120,16 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
       <ModalBackdrop onClose={onClose} title="Manage priorities" disableEscape={pendingDelete !== null}>
         <div className="mb-1 flex items-center justify-between">
           <h3 className="flex items-center gap-1.5 text-base font-semibold text-slate-900 dark:text-slate-100">
-            <Flag className="h-4 w-4 text-indigo-500" strokeWidth={2} /> Manage priorities
+            <Flag className="h-4 w-4 text-indigo-500" /> Manage priorities
           </h3>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-4 w-4" strokeWidth={2} />
-          </Button>
         </div>
         <p className="mb-4 flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
-          Reorder, recolor, or add priorities. <Lock className="inline h-3 w-3" strokeWidth={2} /> Default ones can be
+          Reorder, recolor, or add priorities. <Lock className="inline h-3 w-3" /> Default ones can be
           hidden but not renamed or deleted.
         </p>
         {deleteError && (
           <p role="alert" className="mb-4 flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-300">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} /> {deleteError}
+            <Warning className="h-3.5 w-3.5 shrink-0" /> {deleteError}
           </p>
         )}
 
@@ -139,7 +137,7 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
           {priorities.map((priority) => (
             <li key={priority.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div className="mb-2.5 flex items-center justify-between gap-2">
-                <ColorChip emoji={priority.emoji} name={priority.name} color={priority.color} />
+                <ColorChip icon={priority.icon} name={priority.name} color={priority.color} />
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     variant="ghost"
@@ -149,11 +147,11 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
                     aria-label={priority.is_hidden ? `Show ${priority.name}` : `Hide ${priority.name}`}
                     title={priority.is_hidden ? 'Hidden — click to show' : 'Visible — click to hide'}
                   >
-                    {priority.is_hidden ? <EyeOff className="h-3.5 w-3.5" strokeWidth={2} /> : <Eye className="h-3.5 w-3.5" strokeWidth={2} />}
+                    {priority.is_hidden ? <EyeSlash className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </Button>
                   {priority.is_default ? (
                     <span className="flex items-center p-1 text-slate-300 dark:text-slate-600" title="Default priority">
-                      <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                      <Lock className="h-3.5 w-3.5" />
                     </span>
                   ) : (
                     <Button
@@ -163,7 +161,7 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
                       onClick={() => setPendingDelete(priority)}
                       aria-label={`Delete priority ${priority.name}`}
                     >
-                      <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                      <Trash className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>
@@ -171,13 +169,12 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <input
-                    defaultValue={priority.emoji}
-                    onBlur={(e) => handleReemoji(priority, e.target.value)}
+                  <IconPicker
+                    value={priority.icon}
+                    onChange={(icon) => handleReicon(priority, icon)}
+                    color={priority.color}
+                    label={`Icon for ${priority.name}`}
                     disabled={priority.is_default}
-                    maxLength={8}
-                    aria-label={`Emoji for ${priority.name}`}
-                    className={emojiInputClass}
                   />
                   <input
                     defaultValue={priority.name}
@@ -204,21 +201,22 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
         <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
           <div className="mb-2.5 flex items-center gap-2">
             <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
-              <Plus className="h-3.5 w-3.5" strokeWidth={2} /> New priority
+              <Plus className="h-3.5 w-3.5" /> New priority
             </span>
-            <ColorChip emoji={newEmoji} name={newName} color={newColor} />
+            <ColorChip icon={newIcon} name={newName} color={newColor} />
           </div>
 
           <div className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/30">
             <div className="flex items-center gap-2">
-              <input
-                value={newEmoji}
-                onChange={(e) => setNewEmoji(e.target.value)}
-                maxLength={8}
-                placeholder="🙂"
+              <IconPicker
+                value={newIcon}
+                onChange={(icon) => {
+                  setNewIcon(icon)
+                  setNewColor(suggestedColor(icon) ?? newColor)
+                }}
+                color={newColor}
+                label="Icon for new priority"
                 disabled={submitting}
-                aria-label="Emoji for new priority"
-                className={emojiInputClass}
               />
               <input
                 type="text"
@@ -233,19 +231,14 @@ export function PriorityManager({ onClose }: PriorityManagerProps) {
                 aria-label="Name for new priority"
                 className={nameInputClass}
               />
-              <Button className="shrink-0" onClick={handleCreate} disabled={submitting || !newName.trim() || !newEmoji}>
+              <Button className="shrink-0" onClick={handleCreate} disabled={submitting || !newName.trim()}>
                 {submitting ? 'Adding…' : 'Add'}
               </Button>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className={`${fieldLabelClass} pt-1.5`}>Emoji</span>
-              <EmojiSuggestionGrid value={newEmoji} onSelect={setNewEmoji} disabled={submitting} />
             </div>
             <div className="flex items-center gap-2">
               <span className={fieldLabelClass}>Color</span>
               <ColorSwatches value={newColor} onChange={setNewColor} disabled={submitting} />
             </div>
-            {!newEmoji && newName.trim() && <p className="text-xs text-slate-400">Pick an emoji to finish.</p>}
             {createError && <p className="text-xs text-red-500">{createError}</p>}
           </div>
         </div>
