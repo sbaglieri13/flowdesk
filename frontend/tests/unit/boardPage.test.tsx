@@ -19,6 +19,12 @@ const boardData = vi.hoisted(() => ({
 
 vi.mock('../../src/state/useBoardData', () => ({ useBoardData: () => boardData }))
 
+vi.mock('../../src/components/task/TaskModal', () => ({
+  TaskModal: ({ task, onUpdated }: { task: Task; onUpdated: (task: Task) => void }) => (
+    <button onClick={() => onUpdated({ ...task, title: 'Edited locally' })}>apply edit</button>
+  ),
+}))
+
 function task(id: number, title: string): Task {
   return {
     id,
@@ -73,6 +79,28 @@ describe('BoardPage', () => {
     await act(async () => resolveStale([task(1, 'Stale result')]))
     expect(screen.queryByText('Stale result')).not.toBeInTheDocument()
     expect(screen.getByText('Fresh result')).toBeInTheDocument()
+  })
+
+  it('does not let a task list requested before a local edit overwrite that edit', async () => {
+    let resolveInFlight: (tasks: Task[]) => void = () => {}
+    vi.mocked(tasksApi.list)
+      .mockResolvedValueOnce([task(1, 'Original')])
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveInFlight = resolve)))
+      .mockResolvedValue([task(1, 'Edited on the server')])
+
+    render(<BoardPage />)
+    await userEvent.click(await screen.findByText('Original'))
+    await userEvent.type(screen.getByLabelText('Search tasks'), 'o')
+    await waitFor(() => expect(tasksApi.list).toHaveBeenCalledTimes(2))
+
+    await userEvent.click(await screen.findByRole('button', { name: 'apply edit' }))
+    expect(screen.getByText('Edited locally')).toBeInTheDocument()
+
+    await act(async () => resolveInFlight([task(1, 'Original')]))
+
+    expect(await screen.findByText('Edited on the server')).toBeInTheDocument()
+    expect(screen.queryByText('Original')).not.toBeInTheDocument()
+    expect(tasksApi.list).toHaveBeenCalledTimes(3)
   })
 
   it('includes tags created later in the active filters', async () => {

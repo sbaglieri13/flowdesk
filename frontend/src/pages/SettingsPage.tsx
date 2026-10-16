@@ -89,7 +89,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             <Database className="h-4 w-4 text-indigo-500" /> Backups
           </h2>
           <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-            Export a timestamped copy of the database, or restore a previous one. Restoring overwrites all current data.
+            Export a timestamped JSON copy of all board data to your Supabase storage, or restore a previous one.
+            Restoring overwrites all current data. Attachment files are kept in Supabase Storage and are not part of
+            the backup.
           </p>
           <Button variant="outline" onClick={handleExport} className="mb-3">
             Export backup now

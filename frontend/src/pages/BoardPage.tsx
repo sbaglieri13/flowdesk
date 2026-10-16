@@ -110,8 +110,15 @@ export function BoardPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const reloadTasks = useCallback(() => setReloadKey((key) => key + 1), [])
 
+  const localEditsRef = useRef(0)
+  const updateTasksLocally = (update: (prev: Task[]) => Task[]) => {
+    localEditsRef.current += 1
+    setTasks(update)
+  }
+
   useEffect(() => {
     let cancelled = false
+    const editsAtStart = localEditsRef.current
     tasksApi
       .list({
         search: debouncedSearch || undefined,
@@ -121,7 +128,9 @@ export function BoardPage() {
         reporter_id: filters.reporterIds.length ? filters.reporterIds : [IMPOSSIBLE_REPORTER_ID],
       })
       .then((loaded) => {
-        if (!cancelled) setTasks(loaded)
+        if (cancelled) return
+        if (localEditsRef.current !== editsAtStart) reloadTasks()
+        else setTasks(loaded)
       })
       .catch(() => {
         if (!cancelled) setBoardError('Could not load tasks. Check the server and try again.')
@@ -170,10 +179,10 @@ export function BoardPage() {
     if (targetColumnId === undefined) return
 
     if (activeTask.column_id !== targetColumnId) {
-      setTasks((prev) => prev.map((t) => (t.id === activeTask.id ? { ...t, column_id: targetColumnId } : t)))
+      updateTasksLocally((prev) => prev.map((t) => (t.id === activeTask.id ? { ...t, column_id: targetColumnId } : t)))
       try {
         const updated = await tasksApi.move(activeTask.id, targetColumnId)
-        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+        updateTasksLocally((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
       } catch {
         setBoardError('Could not move the task. Reloading the board.')
         reloadTasks()
@@ -187,7 +196,7 @@ export function BoardPage() {
     if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
 
     const reordered = arrayMove(columnTasks, oldIndex, newIndex).map((t, i) => ({ ...t, position: i * POSITION_GAP }))
-    setTasks((prev) => [...prev.filter((t) => t.column_id !== activeTask.column_id), ...reordered])
+    updateTasksLocally((prev) => [...prev.filter((t) => t.column_id !== activeTask.column_id), ...reordered])
     try {
       await tasksApi.reorder(
         activeTask.column_id,
@@ -200,16 +209,16 @@ export function BoardPage() {
   }
 
   const handleTaskCreated = (created: Task) => {
-    setTasks((prev) => [...prev, created])
+    updateTasksLocally((prev) => [...prev, created])
   }
 
   const handleTaskUpdated = (updated: Task) => {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+    updateTasksLocally((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
     setSelectedTask(updated)
   }
 
   const handleTaskDeleted = (taskId: number) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId))
+    updateTasksLocally((prev) => prev.filter((t) => t.id !== taskId))
     setSelectedTask(null)
   }
 

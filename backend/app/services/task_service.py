@@ -14,7 +14,7 @@ from backend.app.models import (
     TaskType,
 )
 from backend.app.schemas import TaskCreate, TaskUpdate
-from backend.app.services.attachment_service import attachment_file_path
+from backend.app.services.attachment_service import remove_attachment_files
 from backend.app.services.defaults_service import default_priority_id
 from backend.app.services.position_service import next_task_position, reposition_tasks_in_column
 from backend.app.services.settings_service import next_task_display_code
@@ -195,11 +195,11 @@ def update_task(db: Session, task: Task, payload: TaskUpdate) -> Task:
 
 
 def delete_task(db: Session, task: Task) -> None:
-    attachment_paths = [attachment_file_path(a) for a in task.attachments]
+    stored_names = [a.stored_name for a in task.attachments]
     db.delete(task)
     db.commit()
-    for path in attachment_paths:
-        path.unlink(missing_ok=True)
+    if stored_names:
+        remove_attachment_files(stored_names)
 
 
 def move_task(db: Session, task: Task, column_id: int, position: int | None = None) -> Task:

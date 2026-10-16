@@ -1,0 +1,13 @@
+name: flowdesk
+
+services:
+  flowdesk:
+    build: .
+    image: flowdesk:latest
+    env_file: .env
+    environment:
+      FLOWDESK_HOST: 0.0.0.0
+      FLOWDESK_PORT: "8000"
+    ports:
+      - "127.0.0.1:${FLOWDESK_PUBLISHED_PORT:-8000}:8000"
+    restart: unless-stopped

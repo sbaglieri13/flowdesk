@@ -227,3 +227,24 @@ def test_filter_by_reporter_and_no_reporter(client, columns_by_name):
     assert titles(reporter["id"]) == ["Assigned"]
     assert titles(-1) == ["Unassigned"]
     assert titles(reporter["id"], -1) == ["Assigned", "Unassigned"]
+
+
+def test_concurrent_creates_never_reuse_a_display_code(engine, db_session, columns_by_name):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from sqlalchemy.orm import sessionmaker
+
+    from backend.app.schemas import TaskCreate
+    from backend.app.services.task_service import create_task
+
+    col_id = columns_by_name["New"].id
+    make_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    def create(index):
+        with make_session() as session:
+            return create_task(session, TaskCreate(title=f"T{index}", column_id=col_id)).display_code
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        codes = list(pool.map(create, range(16)))
+
+    assert sorted(codes, key=lambda c: int(c.split("-")[1])) == [f"FD-{n}" for n in range(1, 17)]

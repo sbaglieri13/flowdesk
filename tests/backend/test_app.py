@@ -1,45 +1,60 @@
-from pathlib import Path
-
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from backend.app import config, main
+from backend.app.database import SchemaError, missing_schema_parts, verify_schema
+from tests.backend.conftest import TEST_DATABASE_URL, apply_schema
 
 
-def test_tests_never_use_the_real_data_folder():
-    assert config.DATA_DIR != config.PROJECT_ROOT / "data"
-    assert not Path(config.DB_PATH).is_relative_to(config.PROJECT_ROOT / "data")
+def test_tests_use_the_test_database_and_local_storage():
+    assert config.settings.database_url == TEST_DATABASE_URL
+    assert config.settings.storage_backend == "local"
+    assert "supabase" not in config.settings.database_url
 
 
-def test_startup_prepares_seeds_and_migrates_in_order(monkeypatch):
+def test_startup_verifies_the_schema_then_seeds(monkeypatch):
     calls = []
 
     class FakeSession:
         def close(self):
             calls.append("close")
 
-    monkeypatch.setattr(main.config, "ensure_data_dirs", lambda: calls.append("dirs"))
-    monkeypatch.setattr(main, "prepare_schema", lambda: calls.append("prepare"))
+    monkeypatch.setattr(main, "verify_schema", lambda: calls.append("verify"))
     monkeypatch.setattr(main, "SessionLocal", FakeSession)
     monkeypatch.setattr(main, "seed_if_empty", lambda _db: calls.append("seed"))
-    monkeypatch.setattr(main, "finalize_schema", lambda: calls.append("finalize"))
 
     with TestClient(main.app):
         pass
 
-    assert calls == ["dirs", "prepare", "seed", "close", "finalize"]
+    assert calls == ["verify", "seed", "close"]
 
 
-def test_every_api_router_is_mounted():
-    paths = {route.path for route in main.app.routes}
-    for prefix in (
-        "/api/columns",
-        "/api/tasks",
-        "/api/tags",
-        "/api/priorities",
-        "/api/task-types",
-        "/api/reporters",
-        "/api/settings",
-        "/api/stats/overview",
-        "/api/backup/export",
-    ):
-        assert any(p.startswith(prefix) for p in paths), prefix
+def test_schema_created_by_the_sql_script_matches_the_models(engine):
+    assert missing_schema_parts(engine) == []
+    verify_schema(engine)
+
+
+def test_verify_schema_names_every_missing_table_and_column(engine):
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE tasks DROP COLUMN closed_at"))
+        conn.execute(text("DROP TABLE time_entries"))
+    try:
+        missing = missing_schema_parts(engine)
+        assert "column tasks.closed_at" in missing
+        assert "table time_entries" in missing
+        with pytest.raises(SchemaError, match="supabase/01_tables.sql"):
+            verify_schema(engine)
+    finally:
+        apply_schema(engine)
+
+
+def test_verify_schema_on_an_empty_database_gives_a_short_message(engine):
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    try:
+        with pytest.raises(SchemaError, match="has no Flowdesk tables yet"):
+            verify_schema(engine)
+    finally:
+        apply_schema(engine)

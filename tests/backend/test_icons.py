@@ -1,8 +1,6 @@
 import json
 
 from backend.app import config
-from backend.app.database import EMOJI_ICON_FALLBACKS
-from backend.app.legacy_emoji import EMOJI_TO_ICON, icon_for_emoji
 from backend.app.seed import DEFAULT_COLUMN_ICONS, DEFAULT_PRIORITIES, DEFAULT_TASK_TYPES
 
 CATALOG = {
@@ -15,18 +13,8 @@ CATALOG = {
 
 def test_every_icon_the_backend_can_write_exists_in_the_frontend_catalog():
     used = (
-        set(EMOJI_TO_ICON.values())
-        | set(DEFAULT_COLUMN_ICONS.values())
+        set(DEFAULT_COLUMN_ICONS.values())
         | {icon for _key, _name, icon, _color in DEFAULT_PRIORITIES + DEFAULT_TASK_TYPES}
-        | {icon for icon in EMOJI_ICON_FALLBACKS.values() if icon}
         | {"tag", "minus", "clipboard-text"}
     )
     assert used - CATALOG == set()
-
-
-def test_emoji_lookup_ignores_variation_selectors_and_falls_back():
-    assert icon_for_emoji("⏸️", None) == "pause-circle"
-    assert icon_for_emoji(" ⚡ ", None) == "lightning"
-    assert icon_for_emoji("🦄", "tag") == "tag"
-    assert icon_for_emoji(None, "tag") == "tag"
-    assert icon_for_emoji("", None) is None

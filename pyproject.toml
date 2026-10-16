@@ -6,6 +6,7 @@ addopts = "--cov=backend.app --cov-report=term-missing:skip-covered --cov-fail-u
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+extend-exclude = ["frontend", "backend/app/static"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ARG"]
@@ -17,3 +18,4 @@ known-first-party = ["backend"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/backend/conftest.py" = ["E402"]
+"tests/**" = ["ARG001"]

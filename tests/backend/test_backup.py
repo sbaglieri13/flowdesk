@@ -1,106 +1,170 @@
+import json
+
 import pytest
 
-from backend.app import config
+from backend.app.config import settings
+from backend.app.models import Task
 from backend.app.services import backup_service
 
 
-class _FakeEngine:
-    def dispose(self) -> None:
-        pass
-
-
 @pytest.fixture()
-def isolated_backup_env(tmp_path, monkeypatch, make_database):
-    db_path = tmp_path / "flowdesk.db"
-    make_database(db_path, "current")
-    backups_dir = tmp_path / "backups"
-    backups_dir.mkdir()
-
-    monkeypatch.setattr(config, "DB_PATH", db_path)
-    monkeypatch.setattr(config, "BACKUPS_DIR", backups_dir)
-    monkeypatch.setattr(backup_service, "engine", _FakeEngine())
-    schema_runs = []
-    monkeypatch.setattr(backup_service, "init_db", lambda: schema_runs.append(True))
-    return db_path, backups_dir, schema_runs
+def backups_dir(storage_root):
+    path = storage_root / settings.backups_bucket
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-def test_export_creates_timestamped_copy(isolated_backup_env):
-    db_path, backups_dir, _ = isolated_backup_env
-
-    info = backup_service.export_backup()
-
-    files = list(backups_dir.glob("flowdesk-*.db"))
-    assert len(files) == 1
-    assert files[0].read_bytes() == db_path.read_bytes()
-    assert info["filename"] == files[0].name
-    assert info["size_bytes"] == db_path.stat().st_size
-
-
-def test_list_backups_returns_newest_first(isolated_backup_env):
-    _, backups_dir, _ = isolated_backup_env
-    older = backups_dir / "flowdesk-20240101-000000.db"
-    newer = backups_dir / "flowdesk-20240102-000000.db"
-    older.write_bytes(b"old")
-    newer.write_bytes(b"new")
-
-    listed = backup_service.list_backups()
-
-    assert [b["filename"] for b in listed] == [newer.name, older.name]
+def _make_board(client, columns_by_name):
+    col_id = columns_by_name["New"].id
+    reporter = client.post("/api/reporters", json={"name": "Ann"}).json()
+    tag = client.post("/api/tags", json={"name": "ops", "color": "#123456"}).json()
+    task = client.post(
+        "/api/tasks",
+        json={
+            "title": "Backed up",
+            "column_id": col_id,
+            "reporter_id": reporter["id"],
+            "tag_ids": [tag["id"]],
+            "deadline": "2026-03-01",
+            "doc_urls": ["https://example.com/doc"],
+            "checklist_items": ["step"],
+        },
+    ).json()
+    client.post(f"/api/tasks/{task['id']}/time-entries", json={"hours": 1.5, "logged_date": "2026-02-01"})
+    return task
 
 
-def test_restore_overwrites_db_with_backup_contents(isolated_backup_env, make_database):
-    db_path, backups_dir, schema_runs = isolated_backup_env
-    backup = backups_dir / "flowdesk-20240101-000000.db"
-    contents = make_database(backup, "restored")
+def test_export_list_download_and_restore_round_trip(client, columns_by_name, backups_dir):
+    task = _make_board(client, columns_by_name)
 
-    backup_service.restore_backup(backup.name)
+    exported = client.post("/api/backup/export").json()
+    assert exported["filename"].startswith("flowdesk-") and exported["filename"].endswith(".json")
+    assert [b["filename"] for b in client.get("/api/backup/list").json()] == [exported["filename"]]
 
-    assert db_path.read_bytes() == contents
-    assert schema_runs == [True]
+    download = client.get(f"/api/backup/download/{exported['filename']}")
+    assert download.status_code == 200
+    assert download.headers["content-type"] == "application/json"
+    payload = json.loads(download.content)
+    assert payload["format"] == "flowdesk-backup"
+    assert len(payload["tables"]["tasks"]) == 1
 
+    client.delete(f"/api/tasks/{task['id']}")
+    client.post("/api/tasks", json={"title": "Created after backup", "column_id": columns_by_name["New"].id})
 
-def test_restore_rejects_a_file_that_is_not_a_database(isolated_backup_env):
-    db_path, backups_dir, schema_runs = isolated_backup_env
-    before = db_path.read_bytes()
-    (backups_dir / "flowdesk-20240101-000000.db").write_bytes(b"definitely not sqlite")
+    assert client.post("/api/backup/restore", json={"filename": exported["filename"]}).status_code == 204
 
-    with pytest.raises(ValueError, match="not a valid"):
-        backup_service.restore_backup("flowdesk-20240101-000000.db")
-
-    assert db_path.read_bytes() == before
-    assert schema_runs == []
-
-
-def test_restore_rejects_a_database_without_flowdesk_tables(isolated_backup_env):
-    import sqlite3
-
-    db_path, backups_dir, schema_runs = isolated_backup_env
-    before = db_path.read_bytes()
-    foreign = backups_dir / "flowdesk-20240101-000000.db"
-    with sqlite3.connect(foreign) as conn:
-        conn.execute("CREATE TABLE unrelated (id INTEGER)")
-    conn.close()
-
-    with pytest.raises(ValueError, match="not a valid Flowdesk database"):
-        backup_service.restore_backup(foreign.name)
-
-    assert db_path.read_bytes() == before
-    assert schema_runs == []
+    titles = [t["title"] for t in client.get("/api/tasks").json()]
+    assert titles == ["Backed up"]
+    restored = client.get(f"/api/tasks/{task['id']}").json()
+    assert restored["reporter"]["name"] == "Ann"
+    assert [t["name"] for t in restored["tags"]] == ["ops"]
+    assert restored["deadline"] == "2026-03-01"
+    assert restored["doc_urls"] == ["https://example.com/doc"]
+    assert restored["total_hours"] == 1.5
+    assert restored["checklist_items"][0]["text"] == "step"
 
 
-@pytest.mark.usefixtures("isolated_backup_env")
-def test_restore_rejects_missing_file():
-    with pytest.raises(ValueError, match="not found"):
-        backup_service.restore_backup("flowdesk-does-not-exist.db")
+def test_ids_keep_growing_after_a_restore(client, columns_by_name, backups_dir):
+    task = _make_board(client, columns_by_name)
+    exported = client.post("/api/backup/export").json()
+    client.post("/api/backup/restore", json={"filename": exported["filename"]})
+
+    created = client.post(
+        "/api/tasks", json={"title": "After", "column_id": columns_by_name["New"].id}
+    ).json()
+
+    assert created["id"] > task["id"]
+    assert created["display_code"] == "FD-2"
 
 
-@pytest.mark.usefixtures("isolated_backup_env")
-def test_restore_neutralizes_directory_components_in_filename():
-    with pytest.raises(ValueError, match="not found"):
-        backup_service.restore_backup("../../etc/passwd")
+def test_two_exports_in_the_same_second_get_distinct_names(client, backups_dir):
+    first = client.post("/api/backup/export").json()["filename"]
+    second = client.post("/api/backup/export").json()["filename"]
+    assert first != second
+    assert len(client.get("/api/backup/list").json()) == 2
 
 
-@pytest.mark.usefixtures("isolated_backup_env")
-def test_backup_file_path_rejects_filename_resolving_to_the_backups_dir_itself():
-    with pytest.raises(ValueError, match="Invalid backup filename"):
-        backup_service.backup_file_path("..")
+def test_list_ignores_foreign_files(client, backups_dir):
+    (backups_dir / "notes.txt").write_text("x")
+    assert client.get("/api/backup/list").json() == []
+
+
+@pytest.mark.parametrize("filename", ["flowdesk-nope.json", "flowdesk-20240101-000000.db"])
+def test_unknown_backup_returns_404(client, backups_dir, filename):
+    assert client.post("/api/backup/restore", json={"filename": filename}).status_code == 404
+    assert client.get(f"/api/backup/download/{filename}").status_code == 404
+
+
+def test_path_components_in_the_filename_are_rejected(client, backups_dir):
+    assert client.post("/api/backup/restore", json={"filename": "../../etc/passwd"}).status_code == 404
+
+
+def _write_backup(backups_dir, payload) -> str:
+    name = "flowdesk-20240101-000000.json"
+    data = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+    (backups_dir / name).write_bytes(data)
+    return name
+
+
+def _valid_payload(db_session):
+    return json.loads(json.dumps(backup_service.build_backup(db_session)))
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda _p: b"not json", "not valid JSON"),
+        (lambda p: {**p, "format": "other"}, "not a Flowdesk backup"),
+        (lambda p: {**p, "format_version": 99}, "Unsupported backup version"),
+        (lambda p: {**p, "tables": {"tasks": []}}, "expected tables"),
+        (lambda p: {**p, "tables": {**p["tables"], "tags": [{"id": 1, "bogus": 1}]}}, "unknown columns"),
+        (lambda p: {**p, "tables": {**p["tables"], "tags": [{"id": 1, "name": "x"}]}}, "missing required"),
+        (lambda p: {**p, "tables": {**p["tables"], "tasks": "nope"}}, "malformed"),
+    ],
+)
+def test_invalid_backups_are_rejected_before_touching_data(
+    client, columns_by_name, db_session, backups_dir, mutate, message
+):
+    _make_board(client, columns_by_name)
+    name = _write_backup(backups_dir, mutate(_valid_payload(db_session)))
+
+    resp = client.post("/api/backup/restore", json={"filename": name})
+
+    assert resp.status_code == 400
+    assert message in resp.json()["detail"]
+    assert [t["title"] for t in client.get("/api/tasks").json()] == ["Backed up"]
+
+
+def test_inconsistent_data_rolls_back_the_whole_restore(client, columns_by_name, db_session, backups_dir):
+    _make_board(client, columns_by_name)
+    payload = _valid_payload(db_session)
+    payload["tables"]["tasks"][0]["column_id"] = 9999
+    name = _write_backup(backups_dir, payload)
+
+    resp = client.post("/api/backup/restore", json={"filename": name})
+
+    assert resp.status_code == 400
+    assert "inconsistent" in resp.json()["detail"]
+    assert db_session.query(Task).count() == 1
+    assert [t["title"] for t in client.get("/api/tasks").json()] == ["Backed up"]
+
+
+def test_bad_date_is_reported_and_rolled_back(client, columns_by_name, db_session, backups_dir):
+    _make_board(client, columns_by_name)
+    payload = _valid_payload(db_session)
+    payload["tables"]["tasks"][0]["deadline"] = "not-a-date"
+    name = _write_backup(backups_dir, payload)
+
+    resp = client.post("/api/backup/restore", json={"filename": name})
+
+    assert resp.status_code == 400
+    assert "Invalid date in tasks.deadline" in resp.json()["detail"]
+    assert [t["title"] for t in client.get("/api/tasks").json()] == ["Backed up"]
+
+
+def test_backup_times_are_sent_with_their_timezone(client, backups_dir):
+    exported = client.post("/api/backup/export").json()
+    listed = client.get("/api/backup/list").json()[0]
+
+    for value in (exported["created_at"], listed["created_at"]):
+        assert value.endswith(("Z", "+00:00"))

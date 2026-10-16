@@ -5,11 +5,14 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-embedded-003B57?logo=sqlite&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres_%2B_Storage-3FCF8E?logo=supabase&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)
 
-Flowdesk is a local-only, self-hosted Kanban board for tracking your own
-work. It runs entirely on your machine, with no accounts and no cloud, and
-stores everything in a single SQLite file.
+Flowdesk is a self-hosted Kanban board for tracking your own work. It runs on
+your computer in a Docker container and keeps everything in **your own
+Supabase project**: the board in Supabase's PostgreSQL database, attachments
+and backups in Supabase Storage. Fill in your Supabase details once, start the
+container, and your board is always there.
 
 ## Features
 
@@ -45,25 +48,77 @@ stores everything in a single SQLite file.
 - Search and filter by text, priority, tag, type, or reporter
 - Draggable, resizable, maximizable task windows
 - Light theme by default, with a dark theme you can switch to (remembered)
-- Manual backup export/restore (older backups are upgraded on restore, and a
-  file that is not a valid Flowdesk database is rejected without touching your
-  data)
+- JSON backup export/restore stored in your Supabase Storage; an invalid or
+  inconsistent backup is rejected without touching your data
+
+## Quick start
+
+You need [Docker](https://www.docker.com/products/docker-desktop/) and a free
+[Supabase](https://supabase.com) account; Python and Node.js are only needed
+for development.
+
+1. Create a Supabase project and run the two SQL scripts in `supabase/` in its
+   SQL Editor.
+2. Copy `.env.example` to `.env` and fill in the database connection string,
+   the project URL and the secret (service_role) key.
+3. Run `docker compose up -d` and open <http://localhost:8000>.
+
+Stop it with `docker compose stop` when you don't need it and bring it back
+with `docker compose start`; your data stays in Supabase either way.
+
+The full step-by-step guide is in
+**[docs/supabase-setup.md](docs/supabase-setup.md)**. It covers where to find
+each value in the Supabase dashboard, everyday commands, using a custom
+hostname such as `http://flowdesk.localhost`, importing data from Flowdesk 1.x
+(SQLite), backups, and troubleshooting.
+
+## Configuration
+
+All settings are environment variables, read from `.env` (never committed).
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | Supabase **Session pooler** connection string (`postgresql://...:5432/postgres`) |
+| `SUPABASE_URL` | yes | Project URL, e.g. `https://abcdefgh.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes | Secret (`sb_secret_...`) or legacy service_role key; stays on the server |
+| `SUPABASE_ATTACHMENTS_BUCKET` | no | Bucket for attachments (default `attachments`) |
+| `SUPABASE_BACKUPS_BUCKET` | no | Bucket for JSON backups (default `backups`) |
+| `FLOWDESK_PUBLISHED_PORT` | no | Port on your computer (default `8000`) |
+
+The browser never sees the database password or the Supabase keys: only the
+Flowdesk server, inside the container, talks to Supabase. Every table has Row
+Level Security turned on with no policies and both buckets are private, so the
+public Supabase API cannot read your data. The container is published on
+`127.0.0.1` only, so other devices on your network cannot reach it.
 
 ## Project structure
 
 ```
-start.py                   Starts the app: python start.py
-requirements.txt           Backend dependencies
+docker-compose.yml         Runs Flowdesk: docker compose up -d
+Dockerfile                 Builds the frontend and the backend into one image
+.env.example               Template for .env (Supabase connection details)
+start.py                   Runs the app without Docker: python start.py
+requirements.txt           Backend runtime dependencies
+requirements-dev.txt       Runtime dependencies + test and lint tools
+supabase/
+  01_tables.sql            Tables, indexes and Row Level Security (run in the SQL Editor)
+  02_storage.sql           Private storage buckets (run in the SQL Editor)
+scripts/
+  migrate_sqlite_to_supabase.py   One-time import from Flowdesk 1.x (SQLite)
+docs/supabase-setup.md     Step-by-step setup guide
 backend/app/
   main.py                  FastAPI app, mounts routers + static files
+  config.py                Settings from environment variables / .env
+  database.py              Engine/session setup and schema check at startup
   models.py                SQLAlchemy models
   schemas.py               Pydantic request/response schemas
-  database.py              Engine/session setup, additive schema sync, data migrations
   routers/                 One module per resource (columns, tasks, tags, ...)
-  services/                Business logic used by the routers
+  services/                Business logic, Supabase Storage client, JSON backups
   static/                  Built frontend (generated, gitignored)
 tests/
   run_all.py               Runs every check and test suite: python tests/run_all.py
+  docker-compose.yml       PostgreSQL used by the tests
+  e2e_server.py            Starts the app on a fresh database for the browser tests
   backend/                 Backend tests (pytest)
 frontend/src/
   api/                     Typed fetch wrappers per resource
@@ -76,58 +131,30 @@ frontend/src/
   utils/                   Pure helpers (filters, deadlines, colors, diffs, ...)
 frontend/tests/unit/       Frontend unit and component tests (Vitest)
 frontend/tests/e2e/        End-to-end tests in a real browser (Playwright)
-data/                      SQLite database, backups, attachments (gitignored)
 ```
 
-## Requirements
+## Development
 
-- Python 3.12+
-- Node.js 20+ (build-time only; not required to run the app)
-- Google Chrome (only for the end-to-end tests)
-
-## Setup
+Requirements: Python 3.12+, Node.js 22.12+, Docker, and Google Chrome (only for
+the end-to-end tests).
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate      # Windows
 source .venv/bin/activate   # macOS/Linux
-
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 cd frontend
 npm install
-npm run build
+npm run build               # compiles the frontend into backend/app/static/
 cd ..
+
+python start.py             # uses the same .env as Docker
 ```
 
-`npm run build` compiles the frontend into `backend/app/static/`, served
-directly by FastAPI. This is a one-time (or per-update) step.
-
-## Running
-
-```bash
-python start.py
-```
-
-Starts the server at `http://127.0.0.1:8000` and opens it in your browser.
-It binds to `127.0.0.1` only — never reachable from other devices.
-
-## Data & backups
-
-All data lives in `data/`, excluded from git:
-
-- `data/flowdesk.db` — the SQLite database
-- `data/backups/` — backups exported from the Settings page
-- `data/attachments/` — files uploaded to tasks
-
-## Development
-
-```bash
-uvicorn backend.app.main:app --reload   # backend, auto-reload
-npm run dev                             # frontend dev server (from frontend/)
-```
-
-The Vite dev server proxies `/api` to `http://127.0.0.1:8000`.
+For live reload, run `uvicorn backend.app.main:app --reload` from the project
+root and `npm run dev` from `frontend/`; the Vite dev server proxies `/api` to
+`http://127.0.0.1:8000`.
 
 ### Icons
 
@@ -148,24 +175,16 @@ can check that nothing broke with a single command.
 
 | Folder | What it checks | Tool |
 | --- | --- | --- |
-| `tests/backend/` | Every API endpoint, error case, business rule, statistics, backups, and database upgrades from older versions | pytest |
-| `frontend/tests/unit/` | Helpers, hooks, and UI components (editor, color picker, filters, checklist, time tracking, ...) | Vitest + Testing Library |
+| `tests/backend/` | Every API endpoint and error case, business rules, statistics, JSON backups, the Supabase Storage client, configuration, the startup schema check, the SQL script matching the models, and the SQLite import | pytest |
+| `frontend/tests/unit/` | Helpers, hooks, and UI components (editor, color picker, filters, checklist, time tracking, reporters, ...) | Vitest + Testing Library |
 | `frontend/tests/e2e/` | The whole app driven in Chrome, like a user: creating, editing, moving and deleting tasks, rich text, filters, board setup, statistics, settings, backups, theme | Playwright |
 
-The frontend tests stay inside `frontend/` because Vitest and Playwright are
-configured from there; `tests/run_all.py` runs both sides together.
-
-The tests never touch your data: backend tests use a temporary database, and
-the end-to-end tests start their own server on port 8765 with a temporary
-`data/` folder, so the app on port 8000 can stay open while they run.
-
-### One-time setup
-
-```bash
-pip install -r requirements.txt
-cd frontend
-npm install
-```
+The tests never touch your Supabase project. They run against a disposable
+PostgreSQL 16 container (`tests/docker-compose.yml`, port 54329, data kept in
+memory) and store files in a temporary folder, and they refuse to start if the
+test database URL points to Supabase. The frontend tests stay inside
+`frontend/` because Vitest and Playwright are configured from there;
+`tests/run_all.py` runs both sides together.
 
 The end-to-end tests use the Google Chrome installed on your machine. Without
 Chrome, run `npx playwright install chromium` once and set
@@ -173,11 +192,12 @@ Chrome, run `npx playwright install chromium` once and set
 
 ### Run everything
 
-From the project root:
+From the project root, with Docker running:
 
 ```bash
-python tests/run_all.py              # lint, type-check, build, and all test suites
+python tests/run_all.py              # starts the test PostgreSQL, then lint, type-check, build, and all suites
 python tests/run_all.py --skip-e2e   # same, without the (slower) browser tests
+python tests/run_all.py --keep-db    # leave the test PostgreSQL running afterwards
 ```
 
 It prints a PASS/FAIL summary and exits with an error if any step fails.
@@ -186,16 +206,18 @@ It prints a PASS/FAIL summary and exits with an error if any step fails.
 
 ```bash
 # backend (from the project root)
+docker compose -f tests/docker-compose.yml up -d --wait   # start the test PostgreSQL
 pytest                                   # all backend tests, with coverage (fails below 90%)
 pytest tests/backend/test_tasks.py -k doc_urls   # one file / matching tests
-ruff check backend start.py tests        # lint
-ruff format backend start.py tests       # formatting
+ruff check backend scripts start.py tests        # lint
+ruff format backend scripts start.py tests       # formatting
+docker compose -f tests/docker-compose.yml down          # stop it
 
 # frontend (from frontend/)
 npm test                                 # unit and component tests
 npm run test:watch                       # re-run tests on every save
 npm run test:coverage                    # coverage report in frontend/coverage/
-npm run test:e2e                         # build, then end-to-end tests in Chrome
+npm run test:e2e                         # build, then end-to-end tests in Chrome (needs the test PostgreSQL)
 npx playwright test --headed             # watch the browser while the e2e tests run
 npx playwright test --trace on           # record a step-by-step trace (for debugging)
 npx playwright show-report               # open the last end-to-end report

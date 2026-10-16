@@ -2,13 +2,13 @@ import io
 
 import pytest
 
-from backend.app import config
+from backend.app.config import settings
 
 
 @pytest.fixture()
-def isolated_attachments_dir(tmp_path, monkeypatch):
-    attachments_dir = tmp_path / "attachments"
-    monkeypatch.setattr(config, "ATTACHMENTS_DIR", attachments_dir)
+def isolated_attachments_dir(storage_root):
+    attachments_dir = storage_root / settings.attachments_bucket
+    attachments_dir.mkdir(parents=True, exist_ok=True)
     return attachments_dir
 
 
@@ -145,3 +145,13 @@ def test_preview_of_unknown_or_missing_file_returns_404(client, task_id, isolate
     for stored in isolated_attachments_dir.iterdir():
         stored.unlink()
     assert client.get(f"/api/tasks/{task_id}/attachments/{attachment['id']}/preview").status_code == 404
+
+
+def test_non_ascii_filenames_are_kept_in_the_download_header(client, task_id):
+    attachment = _upload(client, task_id, "résumé 2026.pdf", content=b"%PDF")
+    response = client.get(f"/api/tasks/{task_id}/attachments/{attachment['id']}/download")
+
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith('attachment; filename="rsum 2026.pdf"')
+    assert "filename*=utf-8''r%C3%A9sum%C3%A9%202026.pdf" in disposition
+    assert client.get(f"/api/tasks/{task_id}").json()["attachments"][0]["filename"] == "résumé 2026.pdf"

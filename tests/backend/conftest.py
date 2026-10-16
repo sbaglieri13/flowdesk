@@ -1,33 +1,74 @@
 import atexit
 import os
 import shutil
-import sqlite3
 import tempfile
+from pathlib import Path
 
-os.environ["FLOWDESK_DATA_DIR"] = tempfile.mkdtemp(prefix="flowdesk-tests-")
-atexit.register(shutil.rmtree, os.environ["FLOWDESK_DATA_DIR"], ignore_errors=True)
+TEST_DATABASE_URL = os.environ.get(
+    "FLOWDESK_TEST_DATABASE_URL", "postgresql+psycopg://flowdesk:flowdesk@127.0.0.1:54329/flowdesk_test"
+)
+if "supabase" in TEST_DATABASE_URL:
+    raise RuntimeError("Refusing to run the tests against a Supabase database: they wipe every table.")
+
+STORAGE_ROOT = Path(tempfile.mkdtemp(prefix="flowdesk-tests-"))
+atexit.register(shutil.rmtree, STORAGE_ROOT, ignore_errors=True)
+os.environ.update(
+    {
+        "DATABASE_URL": TEST_DATABASE_URL,
+        "FLOWDESK_STORAGE": "local",
+        "FLOWDESK_STORAGE_DIR": str(STORAGE_ROOT),
+    }
+)
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.database import Base, get_db
+from backend.app import config
+from backend.app.database import Base, get_db, make_engine
 from backend.app.main import app
 from backend.app.models import BoardColumn, Priority, TaskType
 from backend.app.seed import seed_if_empty
 
+SCHEMA_SQL = config.PROJECT_ROOT / "supabase" / "01_tables.sql"
+
+
+def apply_schema(engine) -> None:
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+        conn.exec_driver_sql(SCHEMA_SQL.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def engine():
+    engine = make_engine(TEST_DATABASE_URL)
+    try:
+        apply_schema(engine)
+    except OperationalError as exc:
+        pytest.exit(
+            "Cannot reach the test PostgreSQL. Start it with "
+            "`docker compose -f tests/docker-compose.yml up -d --wait`.\n" + str(exc.orig),
+            returncode=2,
+        )
+    yield engine
+    engine.dispose()
+
 
 @pytest.fixture()
-def db_session(tmp_path):
-    engine = create_engine(f"sqlite:///{tmp_path / 'test.db'}", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    session = TestingSessionLocal()
+def db_session(engine):
+    names = ", ".join(f'"{table.name}"' for table in Base.metadata.sorted_tables)
+    with engine.begin() as conn:
+        conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+    shutil.rmtree(STORAGE_ROOT, ignore_errors=True)
+    STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
+
+    session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
     seed_if_empty(session)
     yield session
     session.close()
-    engine.dispose()
 
 
 @pytest.fixture()
@@ -41,16 +82,8 @@ def client(db_session):
 
 
 @pytest.fixture()
-def make_database():
-    def _make(path, marker: str = "") -> bytes:
-        with sqlite3.connect(path) as conn:
-            conn.execute("CREATE TABLE columns (id INTEGER PRIMARY KEY)")
-            conn.execute("CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT)")
-            conn.execute("INSERT INTO tasks (title) VALUES (?)", (marker,))
-        conn.close()
-        return path.read_bytes()
-
-    return _make
+def storage_root(db_session):
+    return STORAGE_ROOT
 
 
 @pytest.fixture()

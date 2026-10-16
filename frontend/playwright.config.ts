@@ -9,11 +9,11 @@ const python =
   process.env.FLOWDESK_PYTHON ??
   join(projectRoot, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python')
 
-if (!process.env.FLOWDESK_E2E_DATA_DIR) {
+if (!process.env.FLOWDESK_E2E_STORAGE_DIR) {
   for (const entry of readdirSync(tmpdir()).filter((name) => name.startsWith('flowdesk-e2e-'))) {
     rmSync(join(tmpdir(), entry), { recursive: true, force: true })
   }
-  process.env.FLOWDESK_E2E_DATA_DIR = mkdtempSync(join(tmpdir(), 'flowdesk-e2e-'))
+  process.env.FLOWDESK_E2E_STORAGE_DIR = mkdtempSync(join(tmpdir(), 'flowdesk-e2e-'))
 }
 
 export default defineConfig({
@@ -32,10 +32,15 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: `"${python}" -m uvicorn backend.app.main:app --host 127.0.0.1 --port ${PORT}`,
+    command: `"${python}" -m tests.e2e_server`,
     cwd: projectRoot,
     url: `http://127.0.0.1:${PORT}/api/columns`,
-    env: { FLOWDESK_DATA_DIR: process.env.FLOWDESK_E2E_DATA_DIR },
+    env: {
+      FLOWDESK_PORT: String(PORT),
+      FLOWDESK_STORAGE: 'local',
+      FLOWDESK_STORAGE_DIR: process.env.FLOWDESK_E2E_STORAGE_DIR,
+      ...(process.env.FLOWDESK_E2E_DATABASE_URL ? { FLOWDESK_E2E_DATABASE_URL: process.env.FLOWDESK_E2E_DATABASE_URL } : {}),
+    },
     reuseExistingServer: false,
     timeout: 60_000,
   },

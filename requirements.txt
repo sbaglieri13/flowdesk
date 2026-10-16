@@ -2,9 +2,7 @@ fastapi==0.115.6
 uvicorn==0.34.0
 sqlalchemy==2.0.36
 pydantic==2.10.4
-markdown-it-py==4.2.0
-pytest==8.3.4
-pytest-cov==7.0.0
-httpx==0.28.1
-ruff==0.15.21
 python-multipart==0.0.32
+httpx==0.28.1
+psycopg[binary]==3.2.13
+python-dotenv==1.1.1

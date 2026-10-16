@@ -23,7 +23,8 @@ def set_setting(db: Session, key: str, value: str) -> None:
 
 
 def next_task_display_code(db: Session) -> str:
-    current = int(get_setting(db, "next_task_number", "1"))
+    row = db.query(Setting).filter(Setting.key == "next_task_number").with_for_update().one_or_none()
+    current = int(row.value) if row and row.value else 1
     set_setting(db, "next_task_number", str(current + 1))
     db.flush()
     return f"{TASK_CODE_PREFIX}-{current}"
